@@ -16,7 +16,8 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const DATA_FILE = path.join(__dirname, "data", "prices.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
-const CHECK_CRON = process.env.CHECK_CRON || "* * * * *";
+const CHECK_CRON = process.env.CHECK_CRON || "*/30 * * * * *";
+let runningCheck = null;
 
 app.use(express.json());
 app.use("/api", (req, res, next) => {
@@ -344,10 +345,17 @@ async function checkPrices({ manual = false } = {}) {
   const scraped = [];
   const errors = [];
 
-  for (const source of sources) {
-    try {
-      scraped.push(...await scrapeSource(source));
-    } catch (e) {
+  const results = await Promise.allSettled(sources.map(async source => ({
+    source,
+    products: await scrapeSource(source)
+  })));
+
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      scraped.push(...result.value.products);
+    } else {
+      const source = result.reason?.source || sources[results.indexOf(result)] || {};
+      const e = result.reason?.error || result.reason;
       errors.push({ id: source.id, shop: source.shop, url: source.url, error: e?.message || String(e) });
     }
   }
@@ -380,6 +388,15 @@ async function checkPrices({ manual = false } = {}) {
   return { ok: true, rows, errors };
 }
 
+function runPriceCheck(options = {}) {
+  if (!runningCheck) {
+    runningCheck = checkPrices(options).finally(() => {
+      runningCheck = null;
+    });
+  }
+  return runningCheck;
+}
+
 app.get("/api/prices", (req, res) => {
   res.json(loadJSON(DATA_FILE, { rows: [], updatedAt: null, errors: [] }));
 });
@@ -390,17 +407,17 @@ app.get("/api/sources", (req, res) => {
 
 app.post("/api/check", async (req, res) => {
   try {
-    res.json(await checkPrices({ manual: true }));
+    res.json(await runPriceCheck({ manual: true }));
   } catch (e) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
 });
 
 cron.schedule(CHECK_CRON, () => {
-  checkPrices().catch(err => console.error("Cron check error:", err));
+  runPriceCheck().catch(err => console.error("Cron check error:", err));
 });
 
-checkPrices().catch(err => console.error("Initial check error:", err));
+runPriceCheck().catch(err => console.error("Initial check error:", err));
 
 app.listen(PORT, () => {
   console.log(`Kaitori bot running: http://localhost:${PORT}`);
