@@ -83,12 +83,10 @@
     .summary-item { background:var(--surface); padding:14px 16px; }
     .summary-label { color:var(--muted); font-size:12px; font-weight:750; text-transform:uppercase; }
     .summary-value { margin-top:4px; font-size:20px; font-weight:850; }
-    .scroll { overflow:auto; max-height:calc(100vh - 230px); }
-    table { width:100%; border-collapse:separate; border-spacing:0; min-width:1080px; }
+    .scroll { overflow:visible; }
+    table { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; }
     th, td { padding:14px 16px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
     th {
-      position:sticky;
-      top:0;
       z-index:2;
       background:#eef4fb;
       color:#475569;
@@ -101,12 +99,12 @@
     td { background:var(--surface); }
     tr:nth-child(even) td { background:var(--surface-soft); }
     tr:hover td { background:#eef6ff; }
-    .model { min-width:190px; }
-    .apple { min-width:130px; }
-    .shop-cell { min-width:190px; }
+    .model { width:18%; }
+    .apple { width:13%; }
+    .shop-cell { width:23%; }
     .model-name { font-weight:850; font-size:15px; }
     .storage { display:inline-block; margin-top:5px; color:var(--muted); font-size:13px; }
-    .price { font-weight:850; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .price { font-weight:850; white-space:normal; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
     .profit {
       display:inline-flex;
       align-items:center;
@@ -135,7 +133,8 @@
       .top { align-items:stretch; }
       .actions, button { width:100%; }
       .summary { grid-template-columns:1fr; }
-      .scroll { max-height:none; }
+      table { table-layout:auto; }
+      th, td { padding:12px 10px; }
     }
   </style>
 </head>
@@ -146,7 +145,7 @@
       <h1>iPhone 18 Kaitori Compare</h1>
       <div class="subline">
         <span id="updated">Dang tai...</span>
-        <span class="status"><span class="dot" aria-hidden="true"></span>Tu dong cap nhat moi 5 phut</span>
+        <span class="status"><span class="dot" aria-hidden="true"></span>Tu dong cap nhat moi 1 phut</span>
       </div>
     </div>
     <div class="actions">

@@ -1,6 +1,6 @@
 # Kaitori Discord Bot
 
-Dashboard theo doi gia thu mua iPhone 18, so sanh voi gia goc Apple Japan, sap xep tien lai tu cao xuong thap va tu dong cap nhat moi 5 phut.
+Dashboard theo doi gia thu mua iPhone 18, so sanh voi gia goc Apple Japan, sap xep tien lai tu cao xuong thap va tu dong cap nhat moi 1 phut.
 
 ## Chuc nang
 
@@ -10,7 +10,7 @@ Dashboard theo doi gia thu mua iPhone 18, so sanh voi gia goc Apple Japan, sap x
 - Sap xep profit tu cao den thap
 - Luu du lieu moi nhat vao `data/prices.json`
 - Gui Discord webhook khi gia thu mua hoac profit thay doi
-- Cron mac dinh: `*/5 * * * *`
+- Cron mac dinh: `* * * * *`
 
 ## Cai dat
 
@@ -33,7 +33,7 @@ Tao file `.env` tu `.env.example`:
 ```env
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 PORT=3000
-CHECK_CRON=*/5 * * * *
+CHECK_CRON=* * * * *
 ```
 
 Khong co `DISCORD_WEBHOOK_URL` thi dashboard van chay, chi khong gui thong bao Discord.

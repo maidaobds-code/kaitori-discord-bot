@@ -16,7 +16,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const DATA_FILE = path.join(__dirname, "data", "prices.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
-const CHECK_CRON = process.env.CHECK_CRON || "*/5 * * * *";
+const CHECK_CRON = process.env.CHECK_CRON || "* * * * *";
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
