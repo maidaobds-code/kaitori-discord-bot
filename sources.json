@@ -9,13 +9,14 @@
       "url": "https://www.apple.com/jp/iphone/",
       "note": "Update these official Apple retail prices if Apple changes the iPhone 18 lineup.",
       "products": [
-        { "model": "iPhone 18 Pro", "storage": "256GB", "price": 159800 },
-        { "model": "iPhone 18 Pro", "storage": "512GB", "price": 189800 },
-        { "model": "iPhone 18 Pro", "storage": "1TB", "price": 219800 },
-        { "model": "iPhone 18 Pro Max", "storage": "256GB", "price": 189800 },
-        { "model": "iPhone 18 Pro Max", "storage": "512GB", "price": 219800 },
-        { "model": "iPhone 18 Pro Max", "storage": "1TB", "price": 249800 },
-        { "model": "iPhone 18 Pro Max", "storage": "2TB", "price": 309800 }
+        { "model": "iPhone 18 Pro", "storage": "256GB", "price": 219800 },
+        { "model": "iPhone 18 Pro", "storage": "512GB", "price": 254800 },
+        { "model": "iPhone 18 Pro", "storage": "1TB", "price": 324800 },
+        { "model": "iPhone 18 Pro", "storage": "2TB", "price": 429800 },
+        { "model": "iPhone 18 Pro Max", "storage": "256GB", "price": 239800 },
+        { "model": "iPhone 18 Pro Max", "storage": "512GB", "price": 274800 },
+        { "model": "iPhone 18 Pro Max", "storage": "1TB", "price": 344800 },
+        { "model": "iPhone 18 Pro Max", "storage": "2TB", "price": 449800 }
       ]
     },
     {
@@ -31,6 +32,13 @@
       "type": "buyback",
       "enabled": true,
       "url": "https://www.kaitorishouten-co.jp/products/list?category_id=746"
+    },
+    {
+      "id": "pastec-iphone18-pro",
+      "shop": "Mobaste/Pastec",
+      "type": "buyback",
+      "enabled": true,
+      "url": "https://pastec.net/iphone?series_child_id=643"
     },
     {
       "id": "pastec-iphone18-pro-max",
