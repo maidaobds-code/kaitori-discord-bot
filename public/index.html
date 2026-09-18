@@ -260,7 +260,7 @@ async function load(){
   const { shops, products } = groupRows(rawRows);
 
   document.getElementById("updated").textContent =
-    data.updatedAt ? "Cap nhat lan cuoi: " + new Date(data.updatedAt).toLocaleString("vi-VN")
+    data.updatedAt ? "Cập nhật giá lần cuối: " + new Date(data.updatedAt).toLocaleString("vi-VN")
                    : "Chua co du lieu. Bam kiem tra ngay.";
 
   updateSummary(shops, products);
