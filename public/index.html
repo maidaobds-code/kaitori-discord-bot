@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kaitori Price Watch</title>
+  <style>
+    :root { font-family: Inter, system-ui, Arial, sans-serif; color-scheme: dark; }
+    body { margin:0; background:#0b1020; color:#eef2ff; }
+    .wrap { max-width:1100px; margin:auto; padding:32px 18px; }
+    .top { display:flex; gap:16px; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+    h1 { margin:0 0 8px; font-size:30px; }
+    .muted { color:#9ca3af; }
+    button { background:#5865F2; color:white; border:0; border-radius:10px; padding:12px 18px; font-weight:700; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:wait; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; margin-top:24px; }
+    .card { background:#141b30; border:1px solid #27314f; border-radius:16px; padding:18px; }
+    .shop { font-size:14px; color:#a5b4fc; }
+    .model { font-size:18px; font-weight:800; margin-top:4px; }
+    .price { font-size:32px; font-weight:900; margin:12px 0 6px; }
+    .up { color:#34d399; } .down { color:#fb7185; }
+    a { color:#93c5fd; text-decoration:none; }
+    .err { background:#3b1218; border-color:#7f1d1d; }
+    code { background:#111827; padding:2px 6px; border-radius:6px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>📱 Kaitori Price Watch</h1>
+      <div id="updated" class="muted">Đang tải...</div>
+    </div>
+    <button id="checkBtn">Kiểm tra ngay</button>
+  </div>
+  <div id="cards" class="grid"></div>
+</div>
+
+<script>
+function yen(n){ return "¥" + Number(n || 0).toLocaleString("ja-JP"); }
+
+async function load(){
+  const res = await fetch("/api/prices");
+  const data = await res.json();
+  const items = Object.values(data.items || {});
+  document.getElementById("updated").textContent =
+    data.updatedAt ? "Cập nhật: " + new Date(data.updatedAt).toLocaleString("vi-VN")
+                   : "Chưa có dữ liệu. Hãy bật nguồn trong sources.json rồi kiểm tra.";
+  const cards = document.getElementById("cards");
+  cards.innerHTML = "";
+
+  if(!items.length){
+    cards.innerHTML = `<div class="card">
+      <div class="model">Chưa có nguồn đang hoạt động</div>
+      <div class="muted" style="margin-top:8px">
+        Mở <code>sources.json</code>, thêm URL kaitori, CSS selector giá và đặt <code>"enabled": true</code>.
+      </div>
+    </div>`;
+  }
+
+  items.sort((a,b)=>(b.price||0)-(a.price||0)).forEach(x=>{
+    const diff = x.previousPrice == null ? null : x.price - x.previousPrice;
+    const cls = diff > 0 ? "up" : diff < 0 ? "down" : "";
+    const diffText = diff == null ? "Lần kiểm tra đầu" :
+      (diff === 0 ? "Không đổi" : `${diff > 0 ? "▲" : "▼"} ${yen(Math.abs(diff))}`);
+
+    cards.insertAdjacentHTML("beforeend", `
+      <div class="card">
+        <div class="shop">${x.shop || ""}</div>
+        <div class="model">${x.model || ""} ${x.storage || ""}</div>
+        <div class="price">${yen(x.price)}</div>
+        <div class="${cls}">${diffText}</div>
+        <div class="muted" style="margin-top:10px">${new Date(x.checkedAt).toLocaleString("vi-VN")}</div>
+        <div style="margin-top:10px"><a href="${x.url}" target="_blank">Mở trang kaitori ↗</a></div>
+      </div>
+    `);
+  });
+
+  (data.errors || []).forEach(e=>{
+    cards.insertAdjacentHTML("beforeend", `
+      <div class="card err">
+        <div class="shop">${e.shop || e.id}</div>
+        <div class="model">Lỗi lấy giá</div>
+        <div class="muted" style="margin-top:8px">${e.error}</div>
+      </div>
+    `);
+  });
+}
+
+document.getElementById("checkBtn").onclick = async function(){
+  this.disabled = true;
+  this.textContent = "Đang kiểm tra...";
+  try{
+    await fetch("/api/check",{method:"POST"});
+    await load();
+  } finally {
+    this.disabled = false;
+    this.textContent = "Kiểm tra ngay";
+  }
+};
+
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>

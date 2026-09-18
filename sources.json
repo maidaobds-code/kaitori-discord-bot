@@ -1,0 +1,12 @@
+[
+  {
+    "id": "example-shop-iphone18promax-256",
+    "shop": "Ví dụ Kaitori Shop",
+    "model": "iPhone 18 Pro Max",
+    "storage": "256GB",
+    "url": "https://example.com/iphone-18-pro-max-256",
+    "priceSelector": ".price",
+    "enabled": false,
+    "note": "Thay URL và CSS selector bằng trang thật."
+  }
+]
