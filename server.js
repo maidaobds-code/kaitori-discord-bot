@@ -149,6 +149,10 @@ async function scrapeSource(source) {
     return scrapeOneChome(source);
   }
 
+  if (source.adapter === "pastec") {
+    return scrapePastec(source);
+  }
+
   const html = await fetchHtml(source.url);
   return extractProductsFromHtml(html, source);
 }
@@ -242,6 +246,30 @@ async function scrapeOneChome(source) {
         price
       });
     }
+  }
+
+  return compactProducts(products);
+}
+
+async function scrapePastec(source) {
+  const html = await fetchHtml(source.url);
+  const $ = cheerio.load(html);
+  const text = $("body").text().replace(/\s+/g, " ").trim();
+  const products = [];
+  const pattern = /(iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512)GB|iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:1|2)TB)\s*未開封品買取価格\s*([\d,]+)円/gi;
+
+  for (const match of text.matchAll(pattern)) {
+    const inferred = inferProduct(match[1]);
+    const price = parseYen(`${match[2]}円`);
+    if (!inferred || !price) continue;
+    products.push({
+      ...inferred,
+      shop: source.shop,
+      sourceId: source.id,
+      sourceType: source.type,
+      url: source.url,
+      price
+    });
   }
 
   return compactProducts(products);
