@@ -1,29 +1,34 @@
 # Kaitori Discord Bot
 
-Bot theo dõi giá iPhone từ các trang kaitori và gửi thông báo Discord khi giá thay đổi.
+Dashboard theo doi gia thu mua iPhone 18, so sanh voi gia goc Apple Japan, sap xep tien lai tu cao xuong thap va tu dong cap nhat moi 5 phut.
 
-## Chức năng
-- Web dashboard tại `http://localhost:3000`
-- Kiểm tra giá tự động theo cron
-- Gửi Discord khi giá tăng/giảm
-- Nút `Kiểm tra ngay`
-- Lưu giá gần nhất tại `data/prices.json`
-- Hỗ trợ nhiều shop/model/dung lượng
+## Chuc nang
 
-## 1. Cài đặt
+- Web dashboard tai `http://localhost:3000`
+- Lay nhieu san pham iPhone 18 tu cac trang kaitori trong `sources.json`
+- So sanh `gia thu mua - gia Apple`
+- Sap xep profit tu cao den thap
+- Luu du lieu moi nhat vao `data/prices.json`
+- Gui Discord webhook khi gia thu mua hoac profit thay doi
+- Cron mac dinh: `*/5 * * * *`
+
+## Cai dat
+
 ```bash
 npm install
+npm start
 ```
 
-## 2. Discord Webhook
-Trong Discord:
-1. Server Settings
-2. Integrations
-3. Webhooks
-4. New Webhook
-5. Copy Webhook URL
+Neu PowerShell chan `npm.ps1`, dung:
 
-Tạo file `.env` từ `.env.example`:
+```bash
+npm.cmd install
+npm.cmd start
+```
+
+## Discord webhook
+
+Tao file `.env` tu `.env.example`:
 
 ```env
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
@@ -31,65 +36,47 @@ PORT=3000
 CHECK_CRON=*/5 * * * *
 ```
 
-`*/5 * * * *` = kiểm tra mỗi 5 phút.
+Khong co `DISCORD_WEBHOOK_URL` thi dashboard van chay, chi khong gui thong bao Discord.
 
-## 3. Thêm trang kaitori
-Sửa `sources.json`:
+## Cau hinh nguon gia
+
+Sua `sources.json`.
+
+Nguon Apple co the de dang manual:
 
 ```json
-[
-  {
-    "id": "shop-a-18promax-256",
-    "shop": "Shop A",
-    "model": "iPhone 18 Pro Max",
-    "storage": "256GB",
-    "url": "https://shop.example/iphone18",
-    "priceSelector": ".purchase-price",
-    "enabled": true
-  }
-]
+{
+  "id": "apple-iphone18-manual",
+  "shop": "Apple Japan",
+  "type": "manual",
+  "as": "apple",
+  "enabled": true,
+  "products": [
+    { "model": "iPhone 18 Pro Max", "storage": "256GB", "price": 189800 }
+  ]
+}
 ```
 
-`priceSelector` là CSS selector của phần giá trên website.
+Nguon thu mua:
 
-Ví dụ HTML:
-```html
-<div class="purchase-price">262,000円</div>
+```json
+{
+  "id": "pastec-iphone18-pro-max",
+  "shop": "Mobaste/Pastec",
+  "type": "buyback",
+  "enabled": true,
+  "url": "https://pastec.net/iphone?series_child_id=644"
+}
 ```
 
-thì selector là:
-```text
-.purchase-price
-```
+Parser se tim cac dong co dang `iPhone18 Pro Max 256GB` va gia yen gan do. Cac trang render bang JavaScript/SPA co the can thay URL index bang API URL neu HTML khong co du lieu san pham.
 
-## 4. Chạy
-```bash
-npm start
-```
+## API
 
-Mở:
-```text
-http://localhost:3000
-```
+- `GET /api/prices`: du lieu bang profit moi nhat
+- `GET /api/sources`: cau hinh nguon
+- `POST /api/check`: kiem tra ngay
 
-## Deploy
-Có thể chạy trên:
-- VPS
-- Railway
-- Render
-- Fly.io
-- PC cũ chạy 24/7
+## Luu y
 
-### Lưu ý về Vercel
-Bot này dùng cron chạy trong process Node và lưu JSON local, nên không phù hợp nhất với Vercel serverless.
-Nếu muốn deploy Vercel, nên đổi phần lưu dữ liệu sang Supabase và dùng Vercel Cron.
-
-## Website chặn scraper
-Một số kaitori dùng Cloudflare / JavaScript rendering.
-Nếu gặp trang như vậy, cần đổi riêng nguồn đó sang:
-- API chính thức nếu có
-- Playwright
-- Puppeteer
-- hoặc lấy dữ liệu từ một trang so sánh giá có HTML tĩnh
-
-Không nên đặt tần suất quá cao. 5–15 phút/lần thường hợp lý.
+Gia Apple trong `sources.json` dang la bang cau hinh manual de tranh loi do Apple Shop render theo JavaScript/region. Khi Apple thay gia, cap nhat block `apple-iphone18-manual`.

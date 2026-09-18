@@ -1,4 +1,3 @@
-
 import express from "express";
 import axios from "axios";
 import * as cheerio from "cheerio";
@@ -17,6 +16,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const DATA_FILE = path.join(__dirname, "data", "prices.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
+const CHECK_CRON = process.env.CHECK_CRON || "*/5 * * * *";
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
@@ -34,134 +34,228 @@ function saveJSON(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
 }
 
-function parseYen(text = "") {
-  const normalized = text.replace(/[,\s]/g, "");
-  const matches = normalized.match(/(?:¥|￥)?(\d{4,9})円?/g) || [];
-  const nums = matches
-    .map(x => Number((x.match(/\d+/g) || []).join("")))
-    .filter(n => Number.isFinite(n) && n >= 10000 && n <= 2000000);
-  if (!nums.length) return null;
-  return Math.max(...nums);
+function parseYen(value = "") {
+  const text = String(value).replace(/[,\s]/g, "");
+  const match = text.match(/(?:¥|￥)?(\d{4,9})(?:円)?/);
+  if (!match) return null;
+  const price = Number(match[1]);
+  return Number.isFinite(price) && price >= 10000 && price <= 2000000 ? price : null;
+}
+
+function normalizeName(text = "") {
+  return String(text)
+    .replace(/\s+/g, " ")
+    .replace(/（.*?）|\(.*?\)|\[.*?\]/g, "")
+    .trim();
+}
+
+function productKey(model, storage) {
+  const normalizedModel = normalizeName(model).toLowerCase().replace(/\s+/g, "");
+  return `${normalizedModel}-${String(storage).toLowerCase()}`;
+}
+
+function inferProduct(name = "") {
+  const clean = normalizeName(name);
+  const model = clean.match(/iPhone\s*18\s*(?:Pro\s*Max|Pro|Plus|Air|e)?/i)?.[0]?.replace(/\s+/g, " ");
+  const storage = clean.match(/\b(?:128|256|512)GB\b|\b(?:1|2)TB\b/i)?.[0]?.toUpperCase();
+  if (!model || !storage) return null;
+  return { model, storage, key: productKey(model, storage) };
+}
+
+async function fetchHtml(url) {
+  const res = await axios.get(url, {
+    timeout: 20000,
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36",
+      "Accept-Language": "ja,en;q=0.9,vi;q=0.8"
+    }
+  });
+  return res.data;
+}
+
+function extractProductsFromText(text, source) {
+  const products = [];
+  const lines = String(text).replace(/\r/g, "\n").split("\n").map(x => x.trim()).filter(Boolean);
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const inferred = inferProduct(lines[i]);
+    if (!inferred) continue;
+    const nearby = lines.slice(i, i + 8).join(" ");
+    const prices = [...nearby.matchAll(/(?:¥|￥)?\s?[\d,]{5,9}\s?円?/g)]
+      .map(match => parseYen(match[0]))
+      .filter(Boolean);
+    if (!prices.length) continue;
+    products.push({
+      ...inferred,
+      shop: source.shop,
+      sourceId: source.id,
+      sourceType: source.type,
+      url: source.url,
+      price: source.type === "apple" ? Math.min(...prices) : Math.max(...prices)
+    });
+  }
+
+  return products;
+}
+
+function extractProductsFromHtml(html, source) {
+  const $ = cheerio.load(html);
+  const products = [];
+
+  $("tr, li, article, .item, .product, .product-item, .p-product, .price-list__item").each((_, el) => {
+    const text = $(el).text().replace(/\s+/g, " ").trim();
+    const inferred = inferProduct(text);
+    if (!inferred) return;
+    const prices = [...text.matchAll(/(?:¥|￥)?\s?[\d,]{5,9}\s?円?/g)]
+      .map(match => parseYen(match[0]))
+      .filter(Boolean);
+    if (!prices.length) return;
+    products.push({
+      ...inferred,
+      shop: source.shop,
+      sourceId: source.id,
+      sourceType: source.type,
+      url: source.url,
+      price: source.type === "apple" ? Math.min(...prices) : Math.max(...prices)
+    });
+  });
+
+  if (!products.length) {
+    return extractProductsFromText($("body").text(), source);
+  }
+  return products;
 }
 
 async function scrapeSource(source) {
-  const res = await axios.get(source.url, {
-    timeout: 15000,
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36"
-    }
-  });
+  if (source.type === "manual") {
+    return (source.products || []).map(item => ({
+      ...inferProduct(`${item.model} ${item.storage}`),
+      model: item.model,
+      storage: item.storage,
+      shop: source.shop,
+      sourceId: source.id,
+      sourceType: source.as || "apple",
+      url: item.url || source.url,
+      price: Number(item.price)
+    })).filter(item => item.key && item.price);
+  }
 
-  const $ = cheerio.load(res.data);
-  let text = "";
-  if (source.priceSelector) {
-    text = $(source.priceSelector).first().text();
+  const html = await fetchHtml(source.url);
+  return extractProductsFromHtml(html, source);
+}
+
+function buildComparison(scraped, previousRows = []) {
+  const apple = new Map();
+  const offers = [];
+
+  for (const item of scraped) {
+    if (item.sourceType === "apple") {
+      apple.set(item.key, item);
+    } else {
+      offers.push(item);
+    }
   }
-  if (!text.trim()) {
-    text = $("body").text();
-  }
-  const price = parseYen(text);
-  if (!price) throw new Error("Không tìm thấy giá hợp lệ. Kiểm tra priceSelector.");
-  return price;
+
+  const previousById = new Map(previousRows.map(row => [row.id, row]));
+
+  return offers.map(offer => {
+    const base = apple.get(offer.key);
+    const applePrice = base?.price ?? null;
+    const profit = applePrice == null ? null : offer.price - applePrice;
+    const id = `${offer.sourceId}:${offer.key}`;
+    const previous = previousById.get(id);
+    return {
+      id,
+      key: offer.key,
+      model: offer.model,
+      storage: offer.storage,
+      shop: offer.shop,
+      sourceId: offer.sourceId,
+      url: offer.url,
+      buyPrice: offer.price,
+      applePrice,
+      appleUrl: base?.url || null,
+      profit,
+      previousBuyPrice: previous?.buyPrice ?? null,
+      previousProfit: previous?.profit ?? null,
+      checkedAt: new Date().toISOString()
+    };
+  }).sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
 }
 
 async function sendDiscord(message, embeds = []) {
   const url = process.env.DISCORD_WEBHOOK_URL;
   if (!url) return;
-  await axios.post(url, {
-    content: message,
-    embeds,
-    allowed_mentions: { parse: [] }
-  });
+  await axios.post(url, { content: message, embeds, allowed_mentions: { parse: [] } });
 }
 
 async function checkPrices({ manual = false } = {}) {
-  const sources = loadJSON(SOURCES_FILE, []).filter(s => s.enabled);
-  const state = loadJSON(DATA_FILE, { items: {}, updatedAt: null });
-  const changes = [];
+  const config = loadJSON(SOURCES_FILE, { sources: [] });
+  const sources = (Array.isArray(config) ? config : config.sources || []).filter(s => s.enabled);
+  const previous = loadJSON(DATA_FILE, { rows: [] });
+  const scraped = [];
   const errors = [];
 
   for (const source of sources) {
     try {
-      const newPrice = await scrapeSource(source);
-      const old = state.items[source.id]?.price ?? null;
-
-      state.items[source.id] = {
-        ...source,
-        price: newPrice,
-        previousPrice: old,
-        checkedAt: new Date().toISOString()
-      };
-
-      if (old !== null && old !== newPrice) {
-        changes.push({
-          ...source,
-          oldPrice: old,
-          newPrice
-        });
-      }
+      scraped.push(...await scrapeSource(source));
     } catch (e) {
-      errors.push({
-        id: source.id,
-        shop: source.shop,
-        error: e?.message || String(e)
-      });
+      errors.push({ id: source.id, shop: source.shop, url: source.url, error: e?.message || String(e) });
     }
   }
 
-  state.updatedAt = new Date().toISOString();
-  state.errors = errors;
+  const rows = buildComparison(scraped, previous.rows || []);
+  const state = { rows, updatedAt: new Date().toISOString(), errors };
   saveJSON(DATA_FILE, state);
 
-  if (changes.length) {
-    for (const c of changes) {
-      const diff = c.newPrice - c.oldPrice;
-      const arrow = diff > 0 ? "📈" : "📉";
-      await sendDiscord(
-        `${arrow} Giá kaitori đã thay đổi`,
-        [{
-          title: `${c.shop} — ${c.model} ${c.storage}`,
-          url: c.url,
-          fields: [
-            { name: "Giá cũ", value: `¥${c.oldPrice.toLocaleString("ja-JP")}`, inline: true },
-            { name: "Giá mới", value: `¥${c.newPrice.toLocaleString("ja-JP")}`, inline: true },
-            { name: "Chênh lệch", value: `${diff >= 0 ? "+" : ""}¥${diff.toLocaleString("ja-JP")}`, inline: true }
-          ],
-          timestamp: new Date().toISOString()
-        }]
-      );
-    }
+  const changed = rows.filter(row =>
+    row.previousBuyPrice !== null &&
+    (row.previousBuyPrice !== row.buyPrice || row.previousProfit !== row.profit)
+  );
+
+  if (changed.length) {
+    const embeds = changed.slice(0, 10).map(row => ({
+      title: `${row.shop} - ${row.model} ${row.storage}`,
+      url: row.url,
+      fields: [
+        { name: "Buy price", value: `¥${row.buyPrice.toLocaleString("ja-JP")}`, inline: true },
+        { name: "Apple", value: row.applePrice ? `¥${row.applePrice.toLocaleString("ja-JP")}` : "N/A", inline: true },
+        { name: "Profit", value: row.profit == null ? "N/A" : `${row.profit >= 0 ? "+" : ""}¥${row.profit.toLocaleString("ja-JP")}`, inline: true }
+      ],
+      timestamp: new Date().toISOString()
+    }));
+    await sendDiscord("iPhone 18 kaitori price changed", embeds);
   } else if (manual) {
-    await sendDiscord("✅ Đã kiểm tra giá kaitori. Không có thay đổi.");
+    await sendDiscord("Checked iPhone 18 kaitori prices. No changes.");
   }
 
-  return { ok: true, changes, errors, state };
+  return { ok: true, rows, errors };
 }
 
 app.get("/api/prices", (req, res) => {
-  res.json(loadJSON(DATA_FILE, { items: {}, updatedAt: null, errors: [] }));
+  res.json(loadJSON(DATA_FILE, { rows: [], updatedAt: null, errors: [] }));
 });
 
 app.get("/api/sources", (req, res) => {
-  res.json(loadJSON(SOURCES_FILE, []));
+  res.json(loadJSON(SOURCES_FILE, { sources: [] }));
 });
 
 app.post("/api/check", async (req, res) => {
   try {
-    const result = await checkPrices({ manual: true });
-    res.json(result);
+    res.json(await checkPrices({ manual: true }));
   } catch (e) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
 });
 
-const schedule = process.env.CHECK_CRON || "*/5 * * * *";
-cron.schedule(schedule, () => {
+cron.schedule(CHECK_CRON, () => {
   checkPrices().catch(err => console.error("Cron check error:", err));
 });
 
+checkPrices().catch(err => console.error("Initial check error:", err));
+
 app.listen(PORT, () => {
-  console.log(`Kaitori bot đang chạy: http://localhost:${PORT}`);
-  console.log(`Lịch kiểm tra: ${schedule}`);
+  console.log(`Kaitori bot running: http://localhost:${PORT}`);
+  console.log(`Check schedule: ${CHECK_CRON}`);
 });

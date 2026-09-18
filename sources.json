@@ -1,12 +1,51 @@
-[
-  {
-    "id": "example-shop-iphone18promax-256",
-    "shop": "Ví dụ Kaitori Shop",
-    "model": "iPhone 18 Pro Max",
-    "storage": "256GB",
-    "url": "https://example.com/iphone-18-pro-max-256",
-    "priceSelector": ".price",
-    "enabled": false,
-    "note": "Thay URL và CSS selector bằng trang thật."
-  }
-]
+{
+  "sources": [
+    {
+      "id": "apple-iphone18-manual",
+      "shop": "Apple Japan",
+      "type": "manual",
+      "as": "apple",
+      "enabled": true,
+      "url": "https://www.apple.com/jp/iphone/",
+      "note": "Update these official Apple retail prices if Apple changes the iPhone 18 lineup.",
+      "products": [
+        { "model": "iPhone 18 Pro", "storage": "256GB", "price": 159800 },
+        { "model": "iPhone 18 Pro", "storage": "512GB", "price": 189800 },
+        { "model": "iPhone 18 Pro", "storage": "1TB", "price": 219800 },
+        { "model": "iPhone 18 Pro Max", "storage": "256GB", "price": 189800 },
+        { "model": "iPhone 18 Pro Max", "storage": "512GB", "price": 219800 },
+        { "model": "iPhone 18 Pro Max", "storage": "1TB", "price": 249800 },
+        { "model": "iPhone 18 Pro Max", "storage": "2TB", "price": 309800 }
+      ]
+    },
+    {
+      "id": "kaitorishouten-iphone18-pro-max",
+      "shop": "買取商店",
+      "type": "buyback",
+      "enabled": true,
+      "url": "https://www.kaitorishouten-co.jp/products/list?category_id=747"
+    },
+    {
+      "id": "kaitorishouten-iphone18-pro",
+      "shop": "買取商店",
+      "type": "buyback",
+      "enabled": true,
+      "url": "https://www.kaitorishouten-co.jp/products/list?category_id=746"
+    },
+    {
+      "id": "pastec-iphone18-pro-max",
+      "shop": "Mobaste/Pastec",
+      "type": "buyback",
+      "enabled": true,
+      "url": "https://pastec.net/iphone?series_child_id=644"
+    },
+    {
+      "id": "one-chome-index",
+      "shop": "Kaitori 1-chome",
+      "type": "buyback",
+      "enabled": true,
+      "url": "https://www.1-chome.com/index",
+      "note": "This site is a SPA. If it exposes product rows in HTML or JSON, the generic parser will pick them up; otherwise add the API URL here."
+    }
+  ]
+}

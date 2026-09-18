@@ -1,5 +1,70 @@
 {
-  "items": {},
-  "updatedAt": null,
+  "rows": [
+    {
+      "id": "pastec-iphone18-pro-max:iphone18promax-2tb",
+      "key": "iphone18promax-2tb",
+      "model": "iPhone18 Pro Max",
+      "storage": "2TB",
+      "shop": "Mobaste/Pastec",
+      "sourceId": "pastec-iphone18-pro-max",
+      "url": "https://pastec.net/iphone?series_child_id=644",
+      "buyPrice": 430000,
+      "applePrice": 309800,
+      "appleUrl": "https://www.apple.com/jp/iphone/",
+      "profit": 120200,
+      "previousBuyPrice": null,
+      "previousProfit": null,
+      "checkedAt": "2026-09-18T03:36:49.883Z"
+    },
+    {
+      "id": "pastec-iphone18-pro-max:iphone18promax-1tb",
+      "key": "iphone18promax-1tb",
+      "model": "iPhone18 Pro Max",
+      "storage": "1TB",
+      "shop": "Mobaste/Pastec",
+      "sourceId": "pastec-iphone18-pro-max",
+      "url": "https://pastec.net/iphone?series_child_id=644",
+      "buyPrice": 337000,
+      "applePrice": 249800,
+      "appleUrl": "https://www.apple.com/jp/iphone/",
+      "profit": 87200,
+      "previousBuyPrice": null,
+      "previousProfit": null,
+      "checkedAt": "2026-09-18T03:36:49.883Z"
+    },
+    {
+      "id": "pastec-iphone18-pro-max:iphone18promax-256gb",
+      "key": "iphone18promax-256gb",
+      "model": "iPhone18 Pro Max",
+      "storage": "256GB",
+      "shop": "Mobaste/Pastec",
+      "sourceId": "pastec-iphone18-pro-max",
+      "url": "https://pastec.net/iphone?series_child_id=644",
+      "buyPrice": 265000,
+      "applePrice": 189800,
+      "appleUrl": "https://www.apple.com/jp/iphone/",
+      "profit": 75200,
+      "previousBuyPrice": null,
+      "previousProfit": null,
+      "checkedAt": "2026-09-18T03:36:49.883Z"
+    },
+    {
+      "id": "pastec-iphone18-pro-max:iphone18promax-512gb",
+      "key": "iphone18promax-512gb",
+      "model": "iPhone18 Pro Max",
+      "storage": "512GB",
+      "shop": "Mobaste/Pastec",
+      "sourceId": "pastec-iphone18-pro-max",
+      "url": "https://pastec.net/iphone?series_child_id=644",
+      "buyPrice": 283000,
+      "applePrice": 219800,
+      "appleUrl": "https://www.apple.com/jp/iphone/",
+      "profit": 63200,
+      "previousBuyPrice": null,
+      "previousProfit": null,
+      "checkedAt": "2026-09-18T03:36:49.883Z"
+    }
+  ],
+  "updatedAt": "2026-09-18T03:36:49.883Z",
   "errors": []
 }
