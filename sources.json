@@ -20,18 +20,13 @@
       ]
     },
     {
-      "id": "kaitorishouten-iphone18-pro-max",
+      "id": "kaitorishouten-iphone18",
       "shop": "買取商店",
       "type": "buyback",
+      "adapter": "kaitorishouten",
       "enabled": true,
-      "url": "https://www.kaitorishouten-co.jp/products/list?category_id=747"
-    },
-    {
-      "id": "kaitorishouten-iphone18-pro",
-      "shop": "買取商店",
-      "type": "buyback",
-      "enabled": true,
-      "url": "https://www.kaitorishouten-co.jp/products/list?category_id=746"
+      "url": "https://www.kaitorishouten-co.jp/products/list",
+      "categoryIds": [746, 747]
     },
     {
       "id": "pastec-iphone18-pro",
@@ -49,11 +44,12 @@
     },
     {
       "id": "one-chome-index",
-      "shop": "Kaitori 1-chome",
+      "shop": "買取1丁目",
       "type": "buyback",
+      "adapter": "onechome",
       "enabled": true,
       "url": "https://www.1-chome.com/index",
-      "note": "This site is a SPA. If it exposes product rows in HTML or JSON, the generic parser will pick them up; otherwise add the API URL here."
+      "keywords": ["iPhone 18 Pro", "iPhone 18 Pro Max"]
     }
   ]
 }

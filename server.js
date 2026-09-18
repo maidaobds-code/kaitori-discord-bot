@@ -141,8 +141,110 @@ async function scrapeSource(source) {
     })).filter(item => item.key && item.price);
   }
 
+  if (source.adapter === "kaitorishouten") {
+    return scrapeKaitoriShouten(source);
+  }
+
+  if (source.adapter === "onechome") {
+    return scrapeOneChome(source);
+  }
+
   const html = await fetchHtml(source.url);
   return extractProductsFromHtml(html, source);
+}
+
+function priceFromKaitoriShoutenItem(item) {
+  const direct = Number(item?.price_new?.amount);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const prices = (item?.prices || [])
+    .map(price => Number(price.amount))
+    .filter(price => Number.isFinite(price) && price > 0);
+  return prices.length ? Math.max(...prices) : null;
+}
+
+function compactProducts(products) {
+  const byKey = new Map();
+  for (const product of products) {
+    if (!product.key || !product.price) continue;
+    const current = byKey.get(product.key);
+    if (!current || product.price > current.price) {
+      byKey.set(product.key, product);
+    }
+  }
+  return [...byKey.values()];
+}
+
+async function scrapeKaitoriShouten(source) {
+  const categoryIds = source.categoryIds || [];
+  const products = [];
+
+  for (const categoryId of categoryIds) {
+    const url = `https://www.kaitorishouten-co.jp/api/v1/products?per_page=100&page=1&category_id=${encodeURIComponent(categoryId)}`;
+    const { data } = await axios.get(url, {
+      timeout: 20000,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": source.url
+      }
+    });
+
+    for (const item of data?.items || []) {
+      const inferred = inferProduct(item.name);
+      const price = priceFromKaitoriShoutenItem(item);
+      if (!inferred || !price) continue;
+      products.push({
+        ...inferred,
+        shop: source.shop,
+        sourceId: source.id,
+        sourceType: source.type,
+        url: `${source.url}?category_id=${categoryId}`,
+        price
+      });
+    }
+  }
+
+  return compactProducts(products);
+}
+
+function priceFromOneChomeItem(item) {
+  const detailPrices = (item?.goodsKbDetails || [])
+    .map(detail => Number(detail.kbDetailPrice ?? detail.maxPrice))
+    .filter(price => Number.isFinite(price) && price > 0);
+  return detailPrices.length ? Math.max(...detailPrices) : null;
+}
+
+async function scrapeOneChome(source) {
+  const keywords = source.keywords || ["iPhone 18 Pro", "iPhone 18 Pro Max"];
+  const products = [];
+
+  for (const keyword of keywords) {
+    const url = `https://www.1-chome.com/api/index/findByKeyword?page=1&size=48&keyword=${encodeURIComponent(keyword)}`;
+    const { data } = await axios.get(url, {
+      timeout: 20000,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": source.url
+      }
+    });
+
+    for (const item of data?.data?.content || []) {
+      const inferred = inferProduct(item.title);
+      const price = priceFromOneChomeItem(item);
+      if (!inferred || !price) continue;
+      products.push({
+        ...inferred,
+        shop: source.shop,
+        sourceId: source.id,
+        sourceType: source.type,
+        url: source.url,
+        price
+      });
+    }
+  }
+
+  return compactProducts(products);
 }
 
 function buildComparison(scraped, previousRows = []) {
