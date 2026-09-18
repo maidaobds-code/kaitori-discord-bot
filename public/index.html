@@ -5,47 +5,171 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>iPhone 18 Kaitori Compare</title>
   <style>
-    :root { font-family: Inter, system-ui, Arial, sans-serif; color-scheme: dark; }
-    body { margin:0; background:#101318; color:#f2f5f7; }
-    .wrap { max-width:1280px; margin:auto; padding:28px 16px; }
-    .top { display:flex; gap:16px; justify-content:space-between; align-items:center; flex-wrap:wrap; }
-    h1 { margin:0 0 8px; font-size:28px; letter-spacing:0; }
-    .muted { color:#9aa4af; }
-    button { background:#2f7d68; color:white; border:0; border-radius:8px; padding:11px 16px; font-weight:700; cursor:pointer; }
-    button:disabled { opacity:.6; cursor:wait; }
-    .panel { margin-top:22px; border:1px solid #27313c; border-radius:8px; overflow:hidden; background:#151a21; }
-    .scroll { overflow:auto; }
-    table { width:100%; border-collapse:collapse; min-width:1040px; }
-    th, td { padding:13px 14px; border-bottom:1px solid #27313c; text-align:left; vertical-align:top; }
-    th { font-size:12px; text-transform:uppercase; color:#aeb8c3; background:#1b222b; white-space:nowrap; }
-    tr:last-child td { border-bottom:0; }
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --line: #dbe3ee;
+      --line-strong: #c7d2e0;
+      --text: #172033;
+      --muted: #64748b;
+      --primary: #1668dc;
+      --primary-dark: #0f4fb0;
+      --positive: #087f5b;
+      --positive-bg: #e7f7ef;
+      --negative: #bd2f3a;
+      --negative-bg: #fff0f1;
+      --missing: #94a3b8;
+      --best: #fff8db;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); }
+    .wrap { max-width:1320px; margin:auto; padding:24px 16px 36px; }
+    .top {
+      display:flex;
+      gap:16px;
+      justify-content:space-between;
+      align-items:flex-end;
+      flex-wrap:wrap;
+      margin-bottom:18px;
+    }
+    h1 { margin:0 0 8px; font-size:30px; line-height:1.15; letter-spacing:0; }
+    .subline { display:flex; gap:10px; align-items:center; flex-wrap:wrap; color:var(--muted); font-size:14px; }
+    .status {
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      border:1px solid var(--line);
+      background:var(--surface);
+      border-radius:999px;
+      padding:6px 10px;
+      color:#334155;
+      font-size:13px;
+      font-weight:650;
+    }
+    .dot { width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 4px #dcfce7; }
+    .actions { display:flex; gap:10px; align-items:center; }
+    button {
+      min-height:44px;
+      background:var(--primary);
+      color:white;
+      border:0;
+      border-radius:8px;
+      padding:0 16px;
+      font-weight:750;
+      cursor:pointer;
+      box-shadow:0 8px 18px rgba(22, 104, 220, 0.18);
+    }
+    button:hover { background:var(--primary-dark); }
+    button:disabled { opacity:.65; cursor:wait; box-shadow:none; }
+    .panel {
+      border:1px solid var(--line);
+      border-radius:10px;
+      overflow:hidden;
+      background:var(--surface);
+      box-shadow:var(--shadow);
+    }
+    .summary {
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      gap:1px;
+      background:var(--line);
+      border-bottom:1px solid var(--line);
+    }
+    .summary-item { background:var(--surface); padding:14px 16px; }
+    .summary-label { color:var(--muted); font-size:12px; font-weight:750; text-transform:uppercase; }
+    .summary-value { margin-top:4px; font-size:20px; font-weight:850; }
+    .scroll { overflow:auto; max-height:calc(100vh - 230px); }
+    table { width:100%; border-collapse:separate; border-spacing:0; min-width:1080px; }
+    th, td { padding:14px 16px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    th {
+      position:sticky;
+      top:0;
+      z-index:2;
+      background:#eef4fb;
+      color:#475569;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.02em;
+      white-space:nowrap;
+      border-bottom:1px solid var(--line-strong);
+    }
+    td { background:var(--surface); }
+    tr:nth-child(even) td { background:var(--surface-soft); }
+    tr:hover td { background:#eef6ff; }
     .model { min-width:190px; }
-    .apple { min-width:120px; }
-    .shop-cell { min-width:180px; }
-    .price { font-weight:850; white-space:nowrap; }
-    .profit { margin-top:5px; font-weight:900; white-space:nowrap; }
-    .best { background:#18261f; }
-    .positive { color:#43d39e; }
-    .negative { color:#ff7b86; }
-    .missing { color:#66717d; }
-    a { color:#77bdfb; text-decoration:none; }
-    .link { display:block; margin-top:7px; font-size:12px; }
+    .apple { min-width:130px; }
+    .shop-cell { min-width:190px; }
+    .model-name { font-weight:850; font-size:15px; }
+    .storage { display:inline-block; margin-top:5px; color:var(--muted); font-size:13px; }
+    .price { font-weight:850; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .profit {
+      display:inline-flex;
+      align-items:center;
+      margin-top:7px;
+      border-radius:999px;
+      padding:4px 9px;
+      font-size:13px;
+      font-weight:850;
+      white-space:nowrap;
+      font-variant-numeric:tabular-nums;
+    }
+    .positive { color:var(--positive); background:var(--positive-bg); }
+    .negative { color:var(--negative); background:var(--negative-bg); }
+    .missing { color:var(--missing); }
+    td.best { background:var(--best) !important; box-shadow:inset 3px 0 0 #f2b705; }
+    a { color:var(--primary); text-decoration:none; font-weight:650; }
+    a:hover { text-decoration:underline; }
+    .link { display:block; margin-top:8px; font-size:12px; }
     .empty, .err { padding:18px; }
-    .err { border-top:1px solid #4e242b; background:#2a1519; color:#ffb4bd; }
-    code { background:#202833; padding:2px 6px; border-radius:6px; }
+    .err { border-top:1px solid #fecdd3; background:#fff1f2; color:#9f1239; }
+    code { background:#e2e8f0; padding:2px 6px; border-radius:6px; }
+
+    @media (max-width: 720px) {
+      .wrap { padding:18px 10px 26px; }
+      h1 { font-size:24px; }
+      .top { align-items:stretch; }
+      .actions, button { width:100%; }
+      .summary { grid-template-columns:1fr; }
+      .scroll { max-height:none; }
+    }
   </style>
 </head>
 <body>
-<div class="wrap">
+<main class="wrap">
   <div class="top">
     <div>
       <h1>iPhone 18 Kaitori Compare</h1>
-      <div id="updated" class="muted">Dang tai...</div>
+      <div class="subline">
+        <span id="updated">Dang tai...</span>
+        <span class="status"><span class="dot" aria-hidden="true"></span>Tu dong cap nhat moi 5 phut</span>
+      </div>
     </div>
-    <button id="checkBtn">Kiem tra ngay</button>
+    <div class="actions">
+      <button id="checkBtn">Kiem tra ngay</button>
+    </div>
   </div>
 
-  <div class="panel">
+  <section class="panel" aria-label="Bang so sanh gia thu mua iPhone 18">
+    <div class="summary">
+      <div class="summary-item">
+        <div class="summary-label">San pham</div>
+        <div id="productCount" class="summary-value">0</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Cua hang</div>
+        <div id="shopCount" class="summary-value">0</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Lai tot nhat</div>
+        <div id="bestProfit" class="summary-value">N/A</div>
+      </div>
+    </div>
+
     <div class="scroll">
       <table>
         <thead>
@@ -57,10 +181,10 @@
         <tbody id="rows"></tbody>
       </table>
     </div>
-    <div id="empty" class="empty muted" style="display:none"></div>
+    <div id="empty" class="empty missing" style="display:none"></div>
     <div id="errors"></div>
-  </div>
-</div>
+  </section>
+</main>
 
 <script>
 function yen(n){
@@ -69,7 +193,7 @@ function yen(n){
 
 function profitText(n){
   if (n == null) return "Lai: N/A";
-  return (n >= 0 ? "Lai: +" : "Lo: ") + yen(n);
+  return (n >= 0 ? "Lai +" : "Lo ") + yen(n);
 }
 
 function profitClass(n){
@@ -115,6 +239,14 @@ function groupRows(rows){
   };
 }
 
+function updateSummary(shops, products){
+  const best = products.length ? Math.max(...products.map(productRankValue)) : null;
+  document.getElementById("productCount").textContent = products.length;
+  document.getElementById("shopCount").textContent = shops.length;
+  document.getElementById("bestProfit").textContent = best == null || best === -Infinity ? "N/A" : yen(best);
+  document.getElementById("bestProfit").className = "summary-value " + profitClass(best);
+}
+
 async function load(){
   const res = await fetch("/api/prices");
   const data = await res.json();
@@ -122,8 +254,10 @@ async function load(){
   const { shops, products } = groupRows(rawRows);
 
   document.getElementById("updated").textContent =
-    data.updatedAt ? "Cap nhat: " + new Date(data.updatedAt).toLocaleString("vi-VN")
+    data.updatedAt ? "Cap nhat lan cuoi: " + new Date(data.updatedAt).toLocaleString("vi-VN")
                    : "Chua co du lieu. Bam kiem tra ngay.";
+
+  updateSummary(shops, products);
 
   const head = document.getElementById("headRow");
   const body = document.getElementById("rows");
@@ -145,8 +279,8 @@ async function load(){
     let html = `
       <tr>
         <td class="model">
-          <strong>${product.model}</strong><br>
-          <span class="muted">${product.storage}</span>
+          <div class="model-name">${product.model}</div>
+          <span class="storage">${product.storage}</span>
         </td>
         <td class="apple">
           <div class="price">${yen(product.applePrice)}</div>
