@@ -272,14 +272,29 @@ async function scrapeOneChome(source) {
 async function scrapePastec(source) {
   const html = await fetchHtml(source.url);
   const $ = cheerio.load(html);
-  const text = $("body").text().replace(/\s+/g, " ").trim();
+  const bodyText = $("body").text().replace(/\s+/g, " ").trim();
+  const chunks = bodyText.split(/(?=iPhone\s*18\s*(?:Pro\s*Max|Pro))/gi);
   const products = [];
-  const pattern = /(iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512)GB|iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:1|2)TB)\s*未開封品買取価格\s*([\d,]+)円/gi;
+  const seen = new Set();
 
-  for (const match of text.matchAll(pattern)) {
-    const inferred = inferProduct(match[1]);
-    const price = parseYen(`${match[2]}円`);
-    if (!inferred || !price) continue;
+  for (const chunk of chunks) {
+    const productMatch = chunk.match(/iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512|1|2)TB?/i);
+    if (!productMatch) continue;
+
+    const inferred = inferProduct(productMatch[0]);
+    if (!inferred) continue;
+
+    const prices = [...chunk.matchAll(/(?:¥|￥)?\s?[\d,]{3,9}\s?円?/g)]
+      .map(match => parseYen(match[0]))
+      .filter(Boolean);
+
+    const price = prices.length ? Math.max(...prices) : null;
+    if (!price) continue;
+
+    const key = `${inferred.key}:${price}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
     products.push({
       ...inferred,
       shop: source.shop,
@@ -288,6 +303,18 @@ async function scrapePastec(source) {
       url: source.url,
       price
     });
+  }
+
+  if (!products.length) {
+    const fallback = [...bodyText.matchAll(/iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512|1|2)TB?[^\n]{0,120}([\d,]{3,9})円/gi)]
+      .map(match => {
+        const inferred = inferProduct(match[0]);
+        const price = parseYen(match[1]);
+        return inferred && price ? { ...inferred, shop: source.shop, sourceId: source.id, sourceType: source.type, url: source.url, price } : null;
+      })
+      .filter(Boolean);
+
+    return compactProducts([...products, ...fallback]);
   }
 
   return compactProducts(products);
