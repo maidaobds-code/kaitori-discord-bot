@@ -75,7 +75,7 @@
     }
     .summary {
       display:grid;
-      grid-template-columns:repeat(3, minmax(0, 1fr));
+      grid-template-columns:minmax(0, 1fr);
       gap:1px;
       background:var(--line);
       border-bottom:1px solid var(--line);
@@ -156,14 +156,6 @@
   <section class="panel" aria-label="Bang so sanh gia thu mua iPhone 18">
     <div class="summary">
       <div class="summary-item">
-        <div class="summary-label">San pham</div>
-        <div id="productCount" class="summary-value">0</div>
-      </div>
-      <div class="summary-item">
-        <div class="summary-label">Cua hang</div>
-        <div id="shopCount" class="summary-value">0</div>
-      </div>
-      <div class="summary-item">
         <div class="summary-label">Lai tot nhat</div>
         <div id="bestProfit" class="summary-value">N/A</div>
       </div>
@@ -240,8 +232,6 @@ function groupRows(rows){
 
 function updateSummary(shops, products){
   const best = products.length ? Math.max(...products.map(productRankValue)) : null;
-  document.getElementById("productCount").textContent = products.length;
-  document.getElementById("shopCount").textContent = shops.length;
   document.getElementById("bestProfit").textContent = best == null || best === -Infinity ? "N/A" : yen(best);
   document.getElementById("bestProfit").className = "summary-value " + profitClass(best);
 }
