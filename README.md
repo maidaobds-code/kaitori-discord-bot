@@ -10,7 +10,7 @@ Dashboard theo doi gia thu mua iPhone 18, so sanh voi gia goc Apple Japan, sap x
 - Sap xep profit tu cao den thap
 - Luu du lieu moi nhat vao `data/prices.json`
 - Gui Discord webhook khi gia thu mua hoac profit thay doi
-- Cron mac dinh: `*/30 * * * * *`
+- Cron mac dinh: `*/1 * * * *`
 
 ## Cai dat
 
@@ -33,7 +33,7 @@ Tao file `.env` tu `.env.example`:
 ```env
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 PORT=3000
-CHECK_CRON=*/30 * * * * *
+CHECK_CRON=*/1 * * * *
 ```
 
 Khong co `DISCORD_WEBHOOK_URL` thi dashboard van chay, chi khong gui thong bao Discord.
