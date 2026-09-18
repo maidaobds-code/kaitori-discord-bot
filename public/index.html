@@ -84,6 +84,7 @@
     .summary-label { color:var(--muted); font-size:12px; font-weight:750; text-transform:uppercase; }
     .summary-value { margin-top:4px; font-size:20px; font-weight:850; }
     .scroll { overflow:visible; }
+    .mobile-cards { display:none; }
     table { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; }
     th, td { padding:14px 16px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
     th {
@@ -126,6 +127,21 @@
     .empty, .err { padding:18px; }
     .err { border-top:1px solid #fecdd3; background:#fff1f2; color:#9f1239; }
     code { background:#e2e8f0; padding:2px 6px; border-radius:6px; }
+    .product-card { border-top:1px solid var(--line); background:var(--surface); }
+    .product-card-head { padding:14px 16px; background:#eef4fb; }
+    .product-card-title { font-size:16px; font-weight:850; }
+    .product-card-apple { margin-top:8px; color:var(--muted); font-size:13px; }
+    .shop-list { display:grid; gap:10px; padding:12px; }
+    .shop-card {
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:12px;
+      background:var(--surface);
+    }
+    .shop-card.best { border-color:#f2b705; background:var(--best); }
+    .shop-card-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+    .shop-name { font-weight:800; overflow-wrap:anywhere; }
+    .shop-card .price { text-align:right; }
 
     @media (max-width: 720px) {
       .wrap { padding:18px 10px 26px; }
@@ -133,8 +149,8 @@
       .top { align-items:stretch; }
       .actions, button { width:100%; }
       .summary { grid-template-columns:1fr; }
-      table { table-layout:auto; }
-      th, td { padding:12px 10px; }
+      .scroll { display:none; }
+      .mobile-cards { display:block; }
     }
   </style>
 </head>
@@ -172,6 +188,7 @@
         <tbody id="rows"></tbody>
       </table>
     </div>
+    <div id="mobileCards" class="mobile-cards"></div>
     <div id="empty" class="empty missing" style="display:none"></div>
     <div id="errors"></div>
   </section>
@@ -250,6 +267,7 @@ async function load(){
 
   const head = document.getElementById("headRow");
   const body = document.getElementById("rows");
+  const mobileCards = document.getElementById("mobileCards");
   const empty = document.getElementById("empty");
   const errors = document.getElementById("errors");
 
@@ -259,6 +277,7 @@ async function load(){
   });
 
   body.innerHTML = "";
+  mobileCards.innerHTML = "";
   errors.innerHTML = "";
   empty.style.display = products.length ? "none" : "block";
   empty.innerHTML = products.length ? "" : "Chua tim thay gia iPhone 18. Kiem tra <code>sources.json</code> hoac website nguon.";
@@ -296,6 +315,46 @@ async function load(){
 
     html += `</tr>`;
     body.insertAdjacentHTML("beforeend", html);
+
+    let cardHtml = `
+      <article class="product-card">
+        <div class="product-card-head">
+          <div class="product-card-title">${product.model} ${product.storage}</div>
+          <div class="product-card-apple">Gia Apple: <strong>${yen(product.applePrice)}</strong></div>
+        </div>
+        <div class="shop-list">
+    `;
+
+    shops.forEach(shop => {
+      const offer = product.offers.find(x => x.shop === shop.name);
+      if (!offer) {
+        cardHtml += `
+          <div class="shop-card missing">
+            <div class="shop-name">${shop.name}</div>
+            <div style="margin-top:8px">Chua co gia</div>
+          </div>
+        `;
+        return;
+      }
+
+      const isBest = offer.profit != null && offer.profit === bestProfit;
+      cardHtml += `
+        <div class="shop-card ${isBest ? "best" : ""}">
+          <div class="shop-card-top">
+            <div class="shop-name">${offer.shop}</div>
+            <div class="price">${yen(offer.buyPrice)}</div>
+          </div>
+          <div class="profit ${profitClass(offer.profit)}">${profitText(offer.profit)}</div>
+          <a class="link" href="${offer.url}" target="_blank" rel="noreferrer">Mo trang</a>
+        </div>
+      `;
+    });
+
+    cardHtml += `
+        </div>
+      </article>
+    `;
+    mobileCards.insertAdjacentHTML("beforeend", cardHtml);
   });
 
   (data.errors || []).forEach(e => {
