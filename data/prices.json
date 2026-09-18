@@ -14,7 +14,7 @@
       "profit": 25200,
       "previousBuyPrice": 265000,
       "previousProfit": 25200,
-      "checkedAt": "2026-09-18T03:45:01.321Z"
+      "checkedAt": "2026-09-18T03:47:59.679Z"
     },
     {
       "id": "pastec-iphone18-pro-max:iphone18promax-512gb",
@@ -30,7 +30,7 @@
       "profit": 8200,
       "previousBuyPrice": 283000,
       "previousProfit": 8200,
-      "checkedAt": "2026-09-18T03:45:01.321Z"
+      "checkedAt": "2026-09-18T03:47:59.679Z"
     },
     {
       "id": "pastec-iphone18-pro:iphone18pro-256gb",
@@ -46,7 +46,7 @@
       "profit": -4800,
       "previousBuyPrice": 215000,
       "previousProfit": -4800,
-      "checkedAt": "2026-09-18T03:45:01.320Z"
+      "checkedAt": "2026-09-18T03:47:59.675Z"
     },
     {
       "id": "pastec-iphone18-pro-max:iphone18promax-1tb",
@@ -62,7 +62,7 @@
       "profit": -7800,
       "previousBuyPrice": 337000,
       "previousProfit": -7800,
-      "checkedAt": "2026-09-18T03:45:01.321Z"
+      "checkedAt": "2026-09-18T03:47:59.679Z"
     },
     {
       "id": "pastec-iphone18-pro:iphone18pro-512gb",
@@ -78,7 +78,7 @@
       "profit": -8800,
       "previousBuyPrice": 246000,
       "previousProfit": -8800,
-      "checkedAt": "2026-09-18T03:45:01.321Z"
+      "checkedAt": "2026-09-18T03:47:59.679Z"
     },
     {
       "id": "pastec-iphone18-pro:iphone18pro-1tb",
@@ -94,7 +94,7 @@
       "profit": -8800,
       "previousBuyPrice": 316000,
       "previousProfit": -8800,
-      "checkedAt": "2026-09-18T03:45:01.321Z"
+      "checkedAt": "2026-09-18T03:47:59.679Z"
     },
     {
       "id": "pastec-iphone18-pro:iphone18pro-2tb",
@@ -110,7 +110,7 @@
       "profit": -13800,
       "previousBuyPrice": 416000,
       "previousProfit": -13800,
-      "checkedAt": "2026-09-18T03:45:01.321Z"
+      "checkedAt": "2026-09-18T03:47:59.679Z"
     },
     {
       "id": "pastec-iphone18-pro-max:iphone18promax-2tb",
@@ -126,9 +126,9 @@
       "profit": -19800,
       "previousBuyPrice": 430000,
       "previousProfit": -19800,
-      "checkedAt": "2026-09-18T03:45:01.321Z"
+      "checkedAt": "2026-09-18T03:47:59.679Z"
     }
   ],
-  "updatedAt": "2026-09-18T03:45:01.321Z",
+  "updatedAt": "2026-09-18T03:47:59.679Z",
   "errors": []
 }

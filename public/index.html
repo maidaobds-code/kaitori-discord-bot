@@ -3,27 +3,33 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>iPhone 18 Profit Watch</title>
+  <title>iPhone 18 Kaitori Compare</title>
   <style>
     :root { font-family: Inter, system-ui, Arial, sans-serif; color-scheme: dark; }
     body { margin:0; background:#101318; color:#f2f5f7; }
-    .wrap { max-width:1240px; margin:auto; padding:28px 16px; }
+    .wrap { max-width:1280px; margin:auto; padding:28px 16px; }
     .top { display:flex; gap:16px; justify-content:space-between; align-items:center; flex-wrap:wrap; }
     h1 { margin:0 0 8px; font-size:28px; letter-spacing:0; }
     .muted { color:#9aa4af; }
     button { background:#2f7d68; color:white; border:0; border-radius:8px; padding:11px 16px; font-weight:700; cursor:pointer; }
     button:disabled { opacity:.6; cursor:wait; }
     .panel { margin-top:22px; border:1px solid #27313c; border-radius:8px; overflow:hidden; background:#151a21; }
-    table { width:100%; border-collapse:collapse; min-width:920px; }
-    th, td { padding:13px 14px; border-bottom:1px solid #27313c; text-align:left; white-space:nowrap; }
-    th { font-size:12px; text-transform:uppercase; color:#aeb8c3; background:#1b222b; }
-    tr:last-child td { border-bottom:0; }
     .scroll { overflow:auto; }
-    .price { font-weight:800; }
-    .profit { font-weight:900; }
+    table { width:100%; border-collapse:collapse; min-width:1040px; }
+    th, td { padding:13px 14px; border-bottom:1px solid #27313c; text-align:left; vertical-align:top; }
+    th { font-size:12px; text-transform:uppercase; color:#aeb8c3; background:#1b222b; white-space:nowrap; }
+    tr:last-child td { border-bottom:0; }
+    .model { min-width:190px; }
+    .apple { min-width:120px; }
+    .shop-cell { min-width:180px; }
+    .price { font-weight:850; white-space:nowrap; }
+    .profit { margin-top:5px; font-weight:900; white-space:nowrap; }
+    .best { background:#18261f; }
     .positive { color:#43d39e; }
     .negative { color:#ff7b86; }
+    .missing { color:#66717d; }
     a { color:#77bdfb; text-decoration:none; }
+    .link { display:block; margin-top:7px; font-size:12px; }
     .empty, .err { padding:18px; }
     .err { border-top:1px solid #4e242b; background:#2a1519; color:#ffb4bd; }
     code { background:#202833; padding:2px 6px; border-radius:6px; }
@@ -33,7 +39,7 @@
 <div class="wrap">
   <div class="top">
     <div>
-      <h1>iPhone 18 Profit Watch</h1>
+      <h1>iPhone 18 Kaitori Compare</h1>
       <div id="updated" class="muted">Dang tai...</div>
     </div>
     <button id="checkBtn">Kiem tra ngay</button>
@@ -43,15 +49,9 @@
     <div class="scroll">
       <table>
         <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Model</th>
-            <th>Shop thu mua</th>
-            <th>Gia Apple</th>
-            <th>Gia thu mua</th>
-            <th>Tien lai</th>
-            <th>Cap nhat</th>
-            <th>Link</th>
+          <tr id="headRow">
+            <th class="model">Model</th>
+            <th class="apple">Gia Apple</th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -64,43 +64,115 @@
 
 <script>
 function yen(n){
-  return n == null ? "N/A" : "¥" + Number(n).toLocaleString("ja-JP");
+  return n == null ? "N/A" : "\u00a5" + Number(n).toLocaleString("ja-JP");
+}
+
+function profitText(n){
+  if (n == null) return "Lai: N/A";
+  return (n >= 0 ? "Lai: +" : "Lo: ") + yen(n);
 }
 
 function profitClass(n){
-  if (n == null) return "";
+  if (n == null) return "missing";
   return n >= 0 ? "positive" : "negative";
+}
+
+function productRankValue(product){
+  return Math.max(...product.offers.map(x => x.profit ?? -Infinity));
+}
+
+function groupRows(rows){
+  const products = new Map();
+  const shops = new Map();
+
+  rows.forEach(row => {
+    if (!products.has(row.key)) {
+      products.set(row.key, {
+        key: row.key,
+        model: row.model,
+        storage: row.storage,
+        applePrice: row.applePrice,
+        appleUrl: row.appleUrl,
+        checkedAt: row.checkedAt,
+        offers: []
+      });
+    }
+
+    const product = products.get(row.key);
+    product.applePrice = product.applePrice ?? row.applePrice;
+    product.appleUrl = product.appleUrl || row.appleUrl;
+    product.checkedAt = row.checkedAt || product.checkedAt;
+    product.offers.push(row);
+
+    if (!shops.has(row.shop)) {
+      shops.set(row.shop, { name: row.shop });
+    }
+  });
+
+  return {
+    shops: [...shops.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    products: [...products.values()].sort((a, b) => productRankValue(b) - productRankValue(a))
+  };
 }
 
 async function load(){
   const res = await fetch("/api/prices");
   const data = await res.json();
-  const rows = data.rows || [];
+  const rawRows = data.rows || [];
+  const { shops, products } = groupRows(rawRows);
+
   document.getElementById("updated").textContent =
     data.updatedAt ? "Cap nhat: " + new Date(data.updatedAt).toLocaleString("vi-VN")
                    : "Chua co du lieu. Bam kiem tra ngay.";
 
+  const head = document.getElementById("headRow");
   const body = document.getElementById("rows");
   const empty = document.getElementById("empty");
   const errors = document.getElementById("errors");
+
+  head.innerHTML = `<th class="model">Model</th><th class="apple">Gia Apple</th>`;
+  shops.forEach(shop => {
+    head.insertAdjacentHTML("beforeend", `<th class="shop-cell">${shop.name}</th>`);
+  });
+
   body.innerHTML = "";
   errors.innerHTML = "";
-  empty.style.display = rows.length ? "none" : "block";
-  empty.innerHTML = rows.length ? "" : "Chua tim thay gia iPhone 18. Kiem tra <code>sources.json</code> hoac website nguon.";
+  empty.style.display = products.length ? "none" : "block";
+  empty.innerHTML = products.length ? "" : "Chua tim thay gia iPhone 18. Kiem tra <code>sources.json</code> hoac website nguon.";
 
-  rows.forEach((row, index) => {
-    body.insertAdjacentHTML("beforeend", `
+  products.forEach(product => {
+    const bestProfit = productRankValue(product);
+    let html = `
       <tr>
-        <td>#${index + 1}</td>
-        <td><strong>${row.model}</strong> ${row.storage}</td>
-        <td>${row.shop}</td>
-        <td class="price">${yen(row.applePrice)}</td>
-        <td class="price">${yen(row.buyPrice)}</td>
-        <td class="profit ${profitClass(row.profit)}">${row.profit == null ? "N/A" : (row.profit >= 0 ? "+" : "") + yen(row.profit)}</td>
-        <td class="muted">${new Date(row.checkedAt).toLocaleString("vi-VN")}</td>
-        <td><a href="${row.url}" target="_blank" rel="noreferrer">Mo trang</a></td>
-      </tr>
-    `);
+        <td class="model">
+          <strong>${product.model}</strong><br>
+          <span class="muted">${product.storage}</span>
+        </td>
+        <td class="apple">
+          <div class="price">${yen(product.applePrice)}</div>
+          ${product.appleUrl ? `<a class="link" href="${product.appleUrl}" target="_blank" rel="noreferrer">Apple</a>` : ""}
+        </td>
+    `;
+
+    shops.forEach(shop => {
+      const offer = product.offers.find(x => x.shop === shop.name);
+      if (!offer) {
+        html += `<td class="shop-cell missing">Chua co gia</td>`;
+        return;
+      }
+
+      const isBest = offer.profit != null && offer.profit === bestProfit;
+      html += `
+        <td class="shop-cell ${isBest ? "best" : ""}">
+          <div class="price">${yen(offer.buyPrice)}</div>
+          <div class="profit ${profitClass(offer.profit)}">${profitText(offer.profit)}</div>
+          <a class="link" href="${offer.url}" target="_blank" rel="noreferrer">Mo trang</a>
+        </td>
+      `;
+    });
+
+    html += `</tr>`;
+    body.insertAdjacentHTML("beforeend", html);
   });
 
   (data.errors || []).forEach(e => {
