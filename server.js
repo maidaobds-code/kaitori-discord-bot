@@ -19,6 +19,12 @@ const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "* * * * *";
 
 app.use(express.json());
+app.use("/api", (req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  next();
+});
 app.use(express.static(path.join(__dirname, "public")));
 
 function loadJSON(file, fallback) {
@@ -63,15 +69,22 @@ function inferProduct(name = "") {
 }
 
 async function fetchHtml(url) {
-  const res = await axios.get(url, {
+  const res = await axios.get(withCacheBust(url), {
     timeout: 20000,
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36",
-      "Accept-Language": "ja,en;q=0.9,vi;q=0.8"
+      "Accept-Language": "ja,en;q=0.9,vi;q=0.8",
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache"
     }
   });
   return res.data;
+}
+
+function withCacheBust(url) {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}_=${Date.now()}`;
 }
 
 function extractProductsFromText(text, source) {
@@ -184,12 +197,14 @@ async function scrapeKaitoriShouten(source) {
 
   for (const categoryId of categoryIds) {
     const url = `https://www.kaitorishouten-co.jp/api/v1/products?per_page=100&page=1&category_id=${encodeURIComponent(categoryId)}`;
-    const { data } = await axios.get(url, {
+    const { data } = await axios.get(withCacheBust(url), {
       timeout: 20000,
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36",
         "Accept": "application/json",
-        "Referer": source.url
+        "Referer": source.url,
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
       }
     });
 
@@ -224,12 +239,14 @@ async function scrapeOneChome(source) {
 
   for (const keyword of keywords) {
     const url = `https://www.1-chome.com/api/index/findByKeyword?page=1&size=48&keyword=${encodeURIComponent(keyword)}`;
-    const { data } = await axios.get(url, {
+    const { data } = await axios.get(withCacheBust(url), {
       timeout: 20000,
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36",
         "Accept": "application/json",
-        "Referer": source.url
+        "Referer": source.url,
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
       }
     });
 

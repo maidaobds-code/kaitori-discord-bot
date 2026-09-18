@@ -254,7 +254,7 @@ function updateSummary(shops, products){
 }
 
 async function load(){
-  const res = await fetch("/api/prices");
+  const res = await fetch("/api/prices", { cache: "no-store" });
   const data = await res.json();
   const rawRows = data.rows || [];
   const { shops, products } = groupRows(rawRows);
@@ -370,7 +370,7 @@ document.getElementById("checkBtn").onclick = async function(){
   this.disabled = true;
   this.textContent = "Dang kiem tra...";
   try {
-    await fetch("/api/check", { method:"POST" });
+    await fetch("/api/check", { method:"POST", cache: "no-store" });
     await load();
   } finally {
     this.disabled = false;
