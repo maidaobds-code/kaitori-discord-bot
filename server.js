@@ -397,17 +397,19 @@ async function checkPrices({ manual = false } = {}) {
   );
 
   if (changed.length) {
-    const embeds = changed.slice(0, 10).map(row => ({
-      title: `${row.shop} - ${row.model} ${row.storage}`,
-      url: row.url,
-      fields: [
-        { name: "Buy price", value: `¥${row.buyPrice.toLocaleString("ja-JP")}`, inline: true },
-        { name: "Apple", value: row.applePrice ? `¥${row.applePrice.toLocaleString("ja-JP")}` : "N/A", inline: true },
-        { name: "Profit", value: row.profit == null ? "N/A" : `${row.profit >= 0 ? "+" : ""}¥${row.profit.toLocaleString("ja-JP")}`, inline: true }
-      ],
-      timestamp: new Date().toISOString()
-    }));
-    await sendDiscord("iPhone 18 kaitori price changed", embeds);
+    const lines = changed.slice(0, 10).map(row => {
+      const profitLabel = row.profit == null ? "Lợi nhuận: N/A" : `Lợi nhuận: ${row.profit >= 0 ? "+" : ""}¥${row.profit.toLocaleString("ja-JP")}`;
+      return [
+        `📉 ${row.model} ${row.storage}`,
+        `Shop: ${row.shop}`,
+        `Mua: ¥${row.buyPrice.toLocaleString("ja-JP")}`,
+        `Apple: ${row.applePrice ? `¥${row.applePrice.toLocaleString("ja-JP")}` : "N/A"}`,
+        profitLabel,
+        `Link: ${row.url}`,
+        ""
+      ].join("\n");
+    });
+    await sendDiscord(lines.join("\n"));
   } else if (manual) {
     await sendDiscord("Checked iPhone 18 kaitori prices. No changes.");
   }
