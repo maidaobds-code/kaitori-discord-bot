@@ -62,9 +62,9 @@
       "shop": "Mobile Mix",
       "type": "buyback",
       "adapter": "mobilemix",
-      "enabled": false,
+      "enabled": true,
       "url": "https://mobile-mix.jp/",
-      "note": "Temporarily disabled because the server response does not consistently include the price table for automated requests."
+      "note": "Reads the base price from table.list td.price; excludes the separate color/status note price."
     }
   ]
 }

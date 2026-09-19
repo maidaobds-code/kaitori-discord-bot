@@ -1,22 +1,6 @@
 {
   "rows": [
     {
-      "id": "one-chome-index:iphone18promax-256gb",
-      "key": "iphone18promax-256gb",
-      "model": "iPhone 18 Pro Max",
-      "storage": "256GB",
-      "shop": "1-Chome",
-      "sourceId": "one-chome-index",
-      "url": "https://www.1-chome.com/index",
-      "buyPrice": 248000,
-      "applePrice": 239800,
-      "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": 8200,
-      "previousBuyPrice": 248000,
-      "previousProfit": 8200,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
-    },
-    {
       "id": "kaitorishouten-iphone18:iphone18promax-256gb",
       "key": "iphone18promax-256gb",
       "model": "iPhone 18 Pro Max",
@@ -24,13 +8,13 @@
       "shop": "Kaitori Shouten",
       "sourceId": "kaitorishouten-iphone18",
       "url": "https://www.kaitorishouten-co.jp/products/list?category_id=747",
-      "buyPrice": 247000,
+      "buyPrice": 249000,
       "applePrice": 239800,
       "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": 7200,
-      "previousBuyPrice": 247000,
-      "previousProfit": 7200,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "profit": 9200,
+      "previousBuyPrice": 249000,
+      "previousProfit": 9200,
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18promax-512gb",
@@ -40,29 +24,13 @@
       "shop": "Kaitori Shouten",
       "sourceId": "kaitorishouten-iphone18",
       "url": "https://www.kaitorishouten-co.jp/products/list?category_id=747",
-      "buyPrice": 278000,
+      "buyPrice": 279000,
       "applePrice": 274800,
       "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": 3200,
-      "previousBuyPrice": 278000,
-      "previousProfit": 3200,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
-    },
-    {
-      "id": "one-chome-index:iphone18promax-512gb",
-      "key": "iphone18promax-512gb",
-      "model": "iPhone 18 Pro Max",
-      "storage": "512GB",
-      "shop": "1-Chome",
-      "sourceId": "one-chome-index",
-      "url": "https://www.1-chome.com/index",
-      "buyPrice": 278000,
-      "applePrice": 274800,
-      "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": 3200,
-      "previousBuyPrice": 278000,
-      "previousProfit": 3200,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "profit": 4200,
+      "previousBuyPrice": 279000,
+      "previousProfit": 4200,
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18promax-1tb",
@@ -72,13 +40,45 @@
       "shop": "Kaitori Shouten",
       "sourceId": "kaitorishouten-iphone18",
       "url": "https://www.kaitorishouten-co.jp/products/list?category_id=747",
-      "buyPrice": 347000,
+      "buyPrice": 348000,
       "applePrice": 344800,
       "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": 2200,
-      "previousBuyPrice": 347000,
-      "previousProfit": 2200,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "profit": 3200,
+      "previousBuyPrice": 348000,
+      "previousProfit": 3200,
+      "checkedAt": "2026-09-19T06:24:00.770Z"
+    },
+    {
+      "id": "one-chome-index:iphone18promax-256gb",
+      "key": "iphone18promax-256gb",
+      "model": "iPhone 18 Pro Max",
+      "storage": "256GB",
+      "shop": "1-Chome",
+      "sourceId": "one-chome-index",
+      "url": "https://www.1-chome.com/index",
+      "buyPrice": 241000,
+      "applePrice": 239800,
+      "appleUrl": "https://www.apple.com/jp/iphone/",
+      "profit": 1200,
+      "previousBuyPrice": 241000,
+      "previousProfit": 1200,
+      "checkedAt": "2026-09-19T06:24:00.770Z"
+    },
+    {
+      "id": "one-chome-index:iphone18promax-512gb",
+      "key": "iphone18promax-512gb",
+      "model": "iPhone 18 Pro Max",
+      "storage": "512GB",
+      "shop": "1-Chome",
+      "sourceId": "one-chome-index",
+      "url": "https://www.1-chome.com/index",
+      "buyPrice": 274000,
+      "applePrice": 274800,
+      "appleUrl": "https://www.apple.com/jp/iphone/",
+      "profit": -800,
+      "previousBuyPrice": 274000,
+      "previousProfit": -800,
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
       "id": "one-chome-index:iphone18promax-1tb",
@@ -88,29 +88,13 @@
       "shop": "1-Chome",
       "sourceId": "one-chome-index",
       "url": "https://www.1-chome.com/index",
-      "buyPrice": 345000,
-      "applePrice": 344800,
-      "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": 200,
-      "previousBuyPrice": 345000,
-      "previousProfit": 200,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
-    },
-    {
-      "id": "pastec-iphone18-pro-max:iphone18promax-1tb",
-      "key": "iphone18promax-1tb",
-      "model": "iPhone18 Pro Max",
-      "storage": "1TB",
-      "shop": "Mobaste/Pastec",
-      "sourceId": "pastec-iphone18-pro-max",
-      "url": "https://pastec.net/iphone?series_child_id=644",
       "buyPrice": 341000,
       "applePrice": 344800,
       "appleUrl": "https://www.apple.com/jp/iphone/",
       "profit": -3800,
       "previousBuyPrice": 341000,
       "previousProfit": -3800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18pro-512gb",
@@ -126,23 +110,7 @@
       "profit": -5800,
       "previousBuyPrice": 249000,
       "previousProfit": -5800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
-    },
-    {
-      "id": "one-chome-index:iphone18pro-512gb",
-      "key": "iphone18pro-512gb",
-      "model": "iPhone 18 Pro",
-      "storage": "512GB",
-      "shop": "1-Chome",
-      "sourceId": "one-chome-index",
-      "url": "https://www.1-chome.com/index",
-      "buyPrice": 249000,
-      "applePrice": 254800,
-      "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": -5800,
-      "previousBuyPrice": 249000,
-      "previousProfit": -5800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18pro-256gb",
@@ -158,7 +126,7 @@
       "profit": -6800,
       "previousBuyPrice": 213000,
       "previousProfit": -6800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
       "id": "one-chome-index:iphone18pro-256gb",
@@ -168,13 +136,29 @@
       "shop": "1-Chome",
       "sourceId": "one-chome-index",
       "url": "https://www.1-chome.com/index",
-      "buyPrice": 213000,
+      "buyPrice": 208000,
       "applePrice": 219800,
       "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": -6800,
-      "previousBuyPrice": 213000,
-      "previousProfit": -6800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "profit": -11800,
+      "previousBuyPrice": 208000,
+      "previousProfit": -11800,
+      "checkedAt": "2026-09-19T06:24:00.770Z"
+    },
+    {
+      "id": "one-chome-index:iphone18pro-512gb",
+      "key": "iphone18pro-512gb",
+      "model": "iPhone 18 Pro",
+      "storage": "512GB",
+      "shop": "1-Chome",
+      "sourceId": "one-chome-index",
+      "url": "https://www.1-chome.com/index",
+      "buyPrice": 242000,
+      "applePrice": 254800,
+      "appleUrl": "https://www.apple.com/jp/iphone/",
+      "profit": -12800,
+      "previousBuyPrice": 242000,
+      "previousProfit": -12800,
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18pro-1tb",
@@ -184,45 +168,13 @@
       "shop": "Kaitori Shouten",
       "sourceId": "kaitorishouten-iphone18",
       "url": "https://www.kaitorishouten-co.jp/products/list?category_id=746",
-      "buyPrice": 315000,
+      "buyPrice": 311000,
       "applePrice": 324800,
       "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": -9800,
-      "previousBuyPrice": 315000,
-      "previousProfit": -9800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
-    },
-    {
-      "id": "one-chome-index:iphone18pro-1tb",
-      "key": "iphone18pro-1tb",
-      "model": "iPhone 18 Pro",
-      "storage": "1TB",
-      "shop": "1-Chome",
-      "sourceId": "one-chome-index",
-      "url": "https://www.1-chome.com/index",
-      "buyPrice": 315000,
-      "applePrice": 324800,
-      "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": -9800,
-      "previousBuyPrice": 315000,
-      "previousProfit": -9800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
-    },
-    {
-      "id": "kaitorishouten-iphone18:iphone18pro-2tb",
-      "key": "iphone18pro-2tb",
-      "model": "iPhone 18 Pro",
-      "storage": "2TB",
-      "shop": "Kaitori Shouten",
-      "sourceId": "kaitorishouten-iphone18",
-      "url": "https://www.kaitorishouten-co.jp/products/list?category_id=746",
-      "buyPrice": 415000,
-      "applePrice": 429800,
-      "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": -14800,
-      "previousBuyPrice": 415000,
-      "previousProfit": -14800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "profit": -13800,
+      "previousBuyPrice": 311000,
+      "previousProfit": -13800,
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18promax-2tb",
@@ -232,45 +184,45 @@
       "shop": "Kaitori Shouten",
       "sourceId": "kaitorishouten-iphone18",
       "url": "https://www.kaitorishouten-co.jp/products/list?category_id=747",
-      "buyPrice": 435000,
+      "buyPrice": 436000,
       "applePrice": 449800,
       "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": -14800,
-      "previousBuyPrice": 435000,
-      "previousProfit": -14800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "profit": -13800,
+      "previousBuyPrice": 436000,
+      "previousProfit": -13800,
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
-      "id": "pastec-iphone18-pro:iphone18pro-1tb",
+      "id": "one-chome-index:iphone18pro-1tb",
       "key": "iphone18pro-1tb",
-      "model": "iPhone18 Pro",
+      "model": "iPhone 18 Pro",
       "storage": "1TB",
-      "shop": "Mobaste/Pastec",
-      "sourceId": "pastec-iphone18-pro",
-      "url": "https://pastec.net/iphone?series_child_id=643",
+      "shop": "1-Chome",
+      "sourceId": "one-chome-index",
+      "url": "https://www.1-chome.com/index",
       "buyPrice": 310000,
       "applePrice": 324800,
       "appleUrl": "https://www.apple.com/jp/iphone/",
       "profit": -14800,
       "previousBuyPrice": 310000,
       "previousProfit": -14800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
-      "id": "pastec-iphone18-pro:iphone18pro-2tb",
+      "id": "kaitorishouten-iphone18:iphone18pro-2tb",
       "key": "iphone18pro-2tb",
-      "model": "iPhone18 Pro",
+      "model": "iPhone 18 Pro",
       "storage": "2TB",
-      "shop": "Mobaste/Pastec",
-      "sourceId": "pastec-iphone18-pro",
-      "url": "https://pastec.net/iphone?series_child_id=643",
-      "buyPrice": 410000,
+      "shop": "Kaitori Shouten",
+      "sourceId": "kaitorishouten-iphone18",
+      "url": "https://www.kaitorishouten-co.jp/products/list?category_id=746",
+      "buyPrice": 411000,
       "applePrice": 429800,
       "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": -19800,
-      "previousBuyPrice": 410000,
-      "previousProfit": -19800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "profit": -18800,
+      "previousBuyPrice": 411000,
+      "previousProfit": -18800,
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
       "id": "one-chome-index:iphone18pro-2tb",
@@ -286,23 +238,7 @@
       "profit": -19800,
       "previousBuyPrice": 410000,
       "previousProfit": -19800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
-    },
-    {
-      "id": "pastec-iphone18-pro-max:iphone18promax-2tb",
-      "key": "iphone18promax-2tb",
-      "model": "iPhone18 Pro Max",
-      "storage": "2TB",
-      "shop": "Mobaste/Pastec",
-      "sourceId": "pastec-iphone18-pro-max",
-      "url": "https://pastec.net/iphone?series_child_id=644",
-      "buyPrice": 428000,
-      "applePrice": 449800,
-      "appleUrl": "https://www.apple.com/jp/iphone/",
-      "profit": -21800,
-      "previousBuyPrice": 428000,
-      "previousProfit": -21800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     },
     {
       "id": "one-chome-index:iphone18promax-2tb",
@@ -318,9 +254,9 @@
       "profit": -21800,
       "previousBuyPrice": 428000,
       "previousProfit": -21800,
-      "checkedAt": "2026-09-19T04:16:47.295Z"
+      "checkedAt": "2026-09-19T06:24:00.770Z"
     }
   ],
-  "updatedAt": "2026-09-19T04:16:47.295Z",
+  "updatedAt": "2026-09-19T06:24:00.770Z",
   "errors": []
 }
