@@ -195,6 +195,25 @@
 </main>
 
 <script>
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>'"]/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    "\"": "&quot;"
+  })[char]);
+}
+
+function safeHref(value){
+  try {
+    const url = new URL(String(value ?? ""), window.location.origin);
+    return ["http:", "https:"].includes(url.protocol) ? escapeHtml(url.href) : "#";
+  } catch {
+    return "#";
+  }
+}
+
 function yen(n){
   return n == null ? "N/A" : "\u00a5" + Number(n).toLocaleString("ja-JP");
 }
@@ -273,7 +292,7 @@ async function load(){
 
   head.innerHTML = `<th class="model">Model</th><th class="apple">Gia Apple</th>`;
   shops.forEach(shop => {
-    head.insertAdjacentHTML("beforeend", `<th class="shop-cell">${shop.name}</th>`);
+    head.insertAdjacentHTML("beforeend", `<th class="shop-cell">${escapeHtml(shop.name)}</th>`);
   });
 
   body.innerHTML = "";
@@ -287,12 +306,12 @@ async function load(){
     let html = `
       <tr>
         <td class="model">
-          <div class="model-name">${product.model}</div>
-          <span class="storage">${product.storage}</span>
+          <div class="model-name">${escapeHtml(product.model)}</div>
+          <span class="storage">${escapeHtml(product.storage)}</span>
         </td>
         <td class="apple">
           <div class="price">${yen(product.applePrice)}</div>
-          ${product.appleUrl ? `<a class="link" href="${product.appleUrl}" target="_blank" rel="noreferrer">Apple</a>` : ""}
+          ${product.appleUrl ? `<a class="link" href="${safeHref(product.appleUrl)}" target="_blank" rel="noopener noreferrer">Apple</a>` : ""}
         </td>
     `;
 
@@ -308,7 +327,7 @@ async function load(){
         <td class="shop-cell ${isBest ? "best" : ""}">
           <div class="price">${yen(offer.buyPrice)}</div>
           <div class="profit ${profitClass(offer.profit)}">${profitText(offer.profit)}</div>
-          <a class="link" href="${offer.url}" target="_blank" rel="noreferrer">Mo trang</a>
+          <a class="link" href="${safeHref(offer.url)}" target="_blank" rel="noopener noreferrer">Mo trang</a>
         </td>
       `;
     });
@@ -319,7 +338,7 @@ async function load(){
     let cardHtml = `
       <article class="product-card">
         <div class="product-card-head">
-          <div class="product-card-title">${product.model} ${product.storage}</div>
+          <div class="product-card-title">${escapeHtml(product.model)} ${escapeHtml(product.storage)}</div>
           <div class="product-card-apple">Gia Apple: <strong>${yen(product.applePrice)}</strong></div>
         </div>
         <div class="shop-list">
@@ -330,7 +349,7 @@ async function load(){
       if (!offer) {
         cardHtml += `
           <div class="shop-card missing">
-            <div class="shop-name">${shop.name}</div>
+            <div class="shop-name">${escapeHtml(shop.name)}</div>
             <div style="margin-top:8px">Chua co gia</div>
           </div>
         `;
@@ -341,11 +360,11 @@ async function load(){
       cardHtml += `
         <div class="shop-card ${isBest ? "best" : ""}">
           <div class="shop-card-top">
-            <div class="shop-name">${offer.shop}</div>
+            <div class="shop-name">${escapeHtml(offer.shop)}</div>
             <div class="price">${yen(offer.buyPrice)}</div>
           </div>
           <div class="profit ${profitClass(offer.profit)}">${profitText(offer.profit)}</div>
-          <a class="link" href="${offer.url}" target="_blank" rel="noreferrer">Mo trang</a>
+          <a class="link" href="${safeHref(offer.url)}" target="_blank" rel="noopener noreferrer">Mo trang</a>
         </div>
       `;
     });
@@ -360,7 +379,7 @@ async function load(){
   (data.errors || []).forEach(e => {
     errors.insertAdjacentHTML("beforeend", `
       <div class="err">
-        <strong>${e.shop || e.id}</strong>: ${e.error}
+        <strong>${escapeHtml(e.shop || e.id)}</strong>: ${escapeHtml(e.error)}
       </div>
     `);
   });
