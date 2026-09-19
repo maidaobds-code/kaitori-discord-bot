@@ -361,6 +361,25 @@ async function scrapePastec(source) {
   const products = [];
   const seen = new Set();
 
+  $("table.p-priceTable tr.js-targetStorage").each((_, row) => {
+    const name = $(row).find(".p-priceTable__name").first().text().replace(/\s+/g, " ").trim();
+    const inferred = inferProduct(name);
+    const price = parseYen($(row).find(".price--unopened").first().text());
+    if (!inferred || !price) return;
+
+    const key = `${inferred.key}:${price}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    products.push({
+      ...inferred,
+      shop: source.shop,
+      sourceId: source.id,
+      sourceType: source.type,
+      url: source.url,
+      price
+    });
+  });
+
   for (const chunk of chunks) {
     const productMatch = chunk.match(new RegExp(`iPhone\\s*18\\s*(?:Pro\\s*Max|Pro)\\s*(?:${storagePattern})`, "i"));
     if (!productMatch) continue;
