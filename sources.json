@@ -33,7 +33,7 @@
       "shop": "Mobaste/Pastec",
       "type": "buyback",
       "adapter": "pastec",
-      "enabled": true,
+      "enabled": false,
       "url": "https://pastec.net/iphone?series_child_id=643",
       "scrapeUrl": "https://pastec.net/iphone",
       "model": "iPhone18 Pro"
@@ -43,7 +43,7 @@
       "shop": "Mobaste/Pastec",
       "type": "buyback",
       "adapter": "pastec",
-      "enabled": true,
+      "enabled": false,
       "url": "https://pastec.net/iphone?series_child_id=644",
       "scrapeUrl": "https://pastec.net/iphone",
       "model": "iPhone18 Pro Max"
