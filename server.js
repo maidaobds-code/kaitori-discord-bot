@@ -19,7 +19,9 @@ const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
 const MANUAL_CHECK_MIN_INTERVAL_MS = Number(process.env.MANUAL_CHECK_MIN_INTERVAL_MS || 30000);
 const STATE_KEY = process.env.STATE_KEY || "kaitori:prices";
-const APP_VERSION = "2026-09-19-state-store-v2";
+const APP_VERSION = "2026-09-19-auto-refresh-v3";
+const PRICE_MAX_AGE_MS = Number(process.env.PRICE_MAX_AGE_MS || 60000);
+const AUTO_REFRESH_ON_READ = process.env.AUTO_REFRESH_ON_READ !== "false";
 const ENABLE_INTERNAL_CRON = process.env.ENABLE_INTERNAL_CRON == null
   ? !process.env.VERCEL
   : process.env.ENABLE_INTERNAL_CRON === "true";
@@ -503,7 +505,7 @@ async function checkPrices({ manual = false } = {}) {
     await sendDiscord("Checked iPhone 18 kaitori prices. No changes.");
   }
 
-  return { ok: true, rows, errors };
+  return { ok: true, ...state };
 }
 
 function runPriceCheck(options = {}) {
@@ -515,9 +517,20 @@ function runPriceCheck(options = {}) {
   return runningCheck;
 }
 
+function isStateStale(state) {
+  if (!state?.updatedAt) return true;
+  const updatedAt = new Date(state.updatedAt).getTime();
+  return !Number.isFinite(updatedAt) || Date.now() - updatedAt > PRICE_MAX_AGE_MS;
+}
+
 app.get("/api/prices", async (req, res) => {
   try {
-    res.json(await loadState());
+    const state = await loadState();
+    if (AUTO_REFRESH_ON_READ && (req.query.refresh === "1" || isStateStale(state))) {
+      res.json(await runPriceCheck());
+      return;
+    }
+    res.json(state);
   } catch (e) {
     res.status(500).json({ rows: [], updatedAt: null, errors: [{ error: e?.message || String(e) }] });
   }
@@ -534,6 +547,8 @@ app.get("/api/health", (req, res) => {
     store: hasRedisStore() ? "upstash-redis" : "memory-file-fallback",
     stateKey: STATE_KEY,
     internalCron: ENABLE_INTERNAL_CRON,
+    autoRefreshOnRead: AUTO_REFRESH_ON_READ,
+    priceMaxAgeMs: PRICE_MAX_AGE_MS,
     vercel: Boolean(process.env.VERCEL),
     hasRedisUrl: Boolean(process.env.UPSTASH_REDIS_REST_URL),
     hasRedisToken: Boolean(process.env.UPSTASH_REDIS_REST_TOKEN)
