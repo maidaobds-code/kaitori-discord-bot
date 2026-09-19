@@ -28,6 +28,7 @@ const ENABLE_INTERNAL_CRON = process.env.ENABLE_INTERNAL_CRON == null
 let runningCheck = null;
 let lastManualCheckAt = 0;
 let memoryState = null;
+let redisStateReadFailed = false;
 
 app.use(express.json());
 app.use((req, res, next) => {
@@ -80,10 +81,12 @@ async function redisCommand(command) {
 
 async function loadState() {
   if (hasRedisStore()) {
+    redisStateReadFailed = false;
     try {
       const value = await redisCommand(["GET", STATE_KEY]);
       return value ? JSON.parse(value) : { rows: [], updatedAt: null, errors: [] };
     } catch (e) {
+      redisStateReadFailed = true;
       console.error("Cannot read price state from Redis:", e.message);
     }
   }
@@ -350,6 +353,7 @@ async function scrapeOneChome(source) {
 
 async function scrapePastec(source) {
   const html = await fetchHtml(source.url);
+  const genericProducts = extractProductsFromHtml(html, source);
   const $ = cheerio.load(html);
   const bodyText = $("body").text().replace(/\s+/g, " ").trim();
   const chunks = bodyText.split(/(?=iPhone\s*18\s*(?:Pro\s*Max|Pro))/gi);
@@ -394,10 +398,10 @@ async function scrapePastec(source) {
       })
       .filter(Boolean);
 
-    return compactProducts([...products, ...fallback]);
+    return compactProducts([...genericProducts, ...products, ...fallback]);
   }
 
-  return compactProducts(products);
+  return compactProducts([...genericProducts, ...products]);
 }
 
 async function scrapeMobileMix(source) {
@@ -590,7 +594,8 @@ function isStateStale(state) {
 app.get("/api/prices", async (req, res) => {
   try {
     const state = await loadState();
-    if (AUTO_REFRESH_ON_READ && (req.query.refresh === "1" || isStateStale(state))) {
+    const needsFallbackRefresh = hasRedisStore() && (redisStateReadFailed || !(state.rows || []).length);
+    if (AUTO_REFRESH_ON_READ && (req.query.refresh === "1" || isStateStale(state) || needsFallbackRefresh)) {
       res.json(await runPriceCheck());
       return;
     }
