@@ -34,7 +34,9 @@
       "type": "buyback",
       "adapter": "pastec",
       "enabled": true,
-      "url": "https://pastec.net/iphone?series_child_id=643"
+      "url": "https://pastec.net/iphone?series_child_id=643",
+      "scrapeUrl": "https://pastec.net/iphone",
+      "model": "iPhone18 Pro"
     },
     {
       "id": "pastec-iphone18-pro-max",
@@ -42,7 +44,9 @@
       "type": "buyback",
       "adapter": "pastec",
       "enabled": true,
-      "url": "https://pastec.net/iphone?series_child_id=644"
+      "url": "https://pastec.net/iphone?series_child_id=644",
+      "scrapeUrl": "https://pastec.net/iphone",
+      "model": "iPhone18 Pro Max"
     },
     {
       "id": "one-chome-index",

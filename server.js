@@ -360,7 +360,7 @@ async function scrapeOneChome(source) {
 }
 
 async function scrapePastec(source) {
-  const html = await fetchHtml(source.url);
+  const html = await fetchHtml(source.scrapeUrl || source.url);
   const genericProducts = extractProductsFromHtml(html, source);
   const $ = cheerio.load(html);
   const bodyText = $("body").text().replace(/\s+/g, " ").trim();
@@ -416,6 +416,11 @@ async function scrapePastec(source) {
     });
   }
 
+  const filterProducts = items => items.filter(item => {
+    if (!source.model) return true;
+    return item.model.replace(/\s+/g, " ").trim().toLowerCase() === source.model.toLowerCase();
+  });
+
   if (!products.length) {
     const fallback = [...bodyText.matchAll(new RegExp(`iPhone\\s*18\\s*(?:Pro\\s*Max|Pro)\\s*(?:${storagePattern})[^\\n]{0,120}([\\u00a5\\uffe5]?\\s?[\\d,]{4,9}\\s?(?:\\u5186|\\u00a5|\\uffe5)?)`, "gi"))]
       .map(match => {
@@ -425,10 +430,10 @@ async function scrapePastec(source) {
       })
       .filter(Boolean);
 
-    return compactProducts([...genericProducts, ...products, ...fallback]);
+    return filterProducts(compactProducts([...genericProducts, ...products, ...fallback]));
   }
 
-  return compactProducts([...genericProducts, ...products]);
+  return filterProducts(compactProducts([...genericProducts, ...products]));
 }
 
 async function scrapeMobileMix(source) {
