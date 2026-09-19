@@ -142,12 +142,15 @@ function inferProduct(name = "") {
 }
 
 async function fetchHtml(url) {
-  const res = await axios.get(withCacheBust(url), {
+  const requestUrl = url.includes("pastec.net") ? url : withCacheBust(url);
+  const res = await axios.get(requestUrl, {
     timeout: 20000,
     headers: {
       "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
       "Accept-Language": "ja,en;q=0.9,vi;q=0.8",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Upgrade-Insecure-Requests": "1",
       "Cache-Control": "no-cache",
       "Pragma": "no-cache"
     }
@@ -237,6 +240,10 @@ async function scrapeSource(source) {
 
   if (source.adapter === "pastec") {
     return scrapePastec(source);
+  }
+
+  if (source.adapter === "mobilemix") {
+    return scrapeMobileMix(source);
   }
 
   const html = await fetchHtml(source.url);
@@ -346,11 +353,12 @@ async function scrapePastec(source) {
   const $ = cheerio.load(html);
   const bodyText = $("body").text().replace(/\s+/g, " ").trim();
   const chunks = bodyText.split(/(?=iPhone\s*18\s*(?:Pro\s*Max|Pro))/gi);
+  const storagePattern = "(?:128|256|512)GB|(?:1|2)TB";
   const products = [];
   const seen = new Set();
 
   for (const chunk of chunks) {
-    const productMatch = chunk.match(/iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512|1|2)TB?/i);
+    const productMatch = chunk.match(new RegExp(`iPhone\\s*18\\s*(?:Pro\\s*Max|Pro)\\s*(?:${storagePattern})`, "i"));
     if (!productMatch) continue;
 
     const inferred = inferProduct(productMatch[0]);
@@ -378,7 +386,7 @@ async function scrapePastec(source) {
   }
 
   if (!products.length) {
-    const fallback = [...bodyText.matchAll(/iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512|1|2)TB?[^\n]{0,120}([\u00a5\uffe5]?\s?[\d,]{4,9}\s?(?:\u5186|\u00a5|\uffe5)?)/gi)]
+    const fallback = [...bodyText.matchAll(new RegExp(`iPhone\\s*18\\s*(?:Pro\\s*Max|Pro)\\s*(?:${storagePattern})[^\\n]{0,120}([\\u00a5\\uffe5]?\\s?[\\d,]{4,9}\\s?(?:\\u5186|\\u00a5|\\uffe5)?)`, "gi"))]
       .map(match => {
         const inferred = inferProduct(match[0]);
         const price = parseYen(match[1]);
@@ -388,6 +396,29 @@ async function scrapePastec(source) {
 
     return compactProducts([...products, ...fallback]);
   }
+
+  return compactProducts(products);
+}
+
+async function scrapeMobileMix(source) {
+  const html = await fetchHtml(source.url);
+  const $ = cheerio.load(html);
+  const products = [];
+
+  $("tr").each((_, row) => {
+    const model = $(row).find("td.product").first().text().trim();
+    const price = parseYen($(row).find("td.price").first().text());
+    const inferred = inferProduct(model);
+    if (!inferred || !price) return;
+    products.push({
+      ...inferred,
+      shop: source.shop,
+      sourceId: source.id,
+      sourceType: source.type,
+      url: source.url,
+      price
+    });
+  });
 
   return compactProducts(products);
 }

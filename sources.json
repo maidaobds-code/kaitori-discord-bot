@@ -33,7 +33,7 @@
       "shop": "Mobaste/Pastec",
       "type": "buyback",
       "adapter": "pastec",
-      "enabled": false,
+      "enabled": true,
       "url": "https://pastec.net/iphone?series_child_id=643"
     },
     {
@@ -41,7 +41,7 @@
       "shop": "Mobaste/Pastec",
       "type": "buyback",
       "adapter": "pastec",
-      "enabled": false,
+      "enabled": true,
       "url": "https://pastec.net/iphone?series_child_id=644"
     },
     {
