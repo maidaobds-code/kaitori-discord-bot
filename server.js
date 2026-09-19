@@ -593,7 +593,11 @@ if (ENABLE_INTERNAL_CRON) {
   runPriceCheck().catch(err => console.error("Initial check error:", err));
 }
 
-app.listen(PORT, () => {
-  console.log(`Kaitori bot running: http://localhost:${PORT}`);
-  console.log(`Internal cron: ${ENABLE_INTERNAL_CRON ? CHECK_CRON : "disabled"}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Kaitori bot running: http://localhost:${PORT}`);
+    console.log(`Internal cron: ${ENABLE_INTERNAL_CRON ? CHECK_CRON : "disabled"}`);
+  });
+}
+
+export default app;

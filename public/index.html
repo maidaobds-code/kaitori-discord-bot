@@ -283,7 +283,8 @@ function updateSummary(shops, products){
 }
 
 async function load(){
-  const res = await fetch("/api/prices", { cache: "no-store" });
+  const res = await fetch(`/api/prices?refresh=1&_=${Date.now()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Price API returned ${res.status}`);
   const data = await res.json();
   const rawRows = data.rows || [];
   const { shops, products } = groupRows(rawRows);
@@ -399,7 +400,8 @@ document.getElementById("checkBtn").onclick = async function(){
   this.disabled = true;
   this.textContent = "Dang kiem tra...";
   try {
-    await fetch("/api/check", { method:"POST", cache: "no-store" });
+    const response = await fetch(`/api/check?_=${Date.now()}`, { method:"POST", cache: "no-store" });
+    if (!response.ok) throw new Error(`Price check returned ${response.status}`);
     await load();
   } finally {
     this.disabled = false;
@@ -407,7 +409,9 @@ document.getElementById("checkBtn").onclick = async function(){
   }
 };
 
-load();
+load().catch(error => {
+  document.getElementById("errors").innerHTML = `<div class="err">Khong the cap nhat gia: ${escapeHtml(error.message)}</div>`;
+});
 setInterval(load, 30000);
 </script>
 </body>
