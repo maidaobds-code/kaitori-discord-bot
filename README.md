@@ -8,7 +8,7 @@ Dashboard theo doi gia thu mua iPhone 18, so sanh voi gia goc Apple Japan, sap x
 - Lay nhieu san pham iPhone 18 tu cac trang kaitori trong `sources.json`
 - So sanh `gia thu mua - gia Apple`
 - Sap xep profit tu cao den thap
-- Local luu du lieu vao `data/prices.json`; production can Upstash Redis de luu gia ben vung
+- Dashboard uu tien scrape live khi nguoi dung mo trang; Upstash Redis chi la cache tuy chon
 - Gui Discord webhook khi gia thu mua hoac profit thay doi
 - Local cron mac dinh: `*/1 * * * *`
 - Vercel Cron goi `/api/cron/check-prices` moi phut theo `vercel.json`
@@ -48,7 +48,7 @@ Khong co `DISCORD_WEBHOOK_URL` thi dashboard van chay, chi khong gui thong bao D
 
 Tren Vercel, khong nen dung `node-cron` va khong the ghi gia vao file JSON vi serverless filesystem read-only/khong ben. App nay da co endpoint `GET /api/cron/check-prices` va `vercel.json` de Vercel Cron goi moi phut.
 
-Upstash Redis la bat buoc neu muon gia cap nhat dung va ben vung tren production. Neu thieu Redis, app chi giu gia moi trong memory tam thoi cua mot server instance va co the mat khi Vercel cold start.
+Upstash Redis la tuy chon. Neu Redis loi hoac khong cau hinh, dashboard van goi `/api/live-prices` de lay gia moi truc tiep tu cac nguon. Redis chi giup cache state cho cron/webhook.
 
 Set environment variables tren Vercel:
 
@@ -100,6 +100,7 @@ Parser se tim cac dong co dang `iPhone18 Pro Max 256GB` va gia yen gan do. Cac t
 ## API
 
 - `GET /api/prices`: du lieu bang profit moi nhat
+- `GET /api/live-prices`: scrape truc tiep va tra gia moi, khong phu thuoc Redis/file
 - `GET /api/sources`: cau hinh nguon
 - `POST /api/check`: kiem tra ngay
 - `GET /api/cron/check-prices`: endpoint cho Vercel Cron/cron ben ngoai

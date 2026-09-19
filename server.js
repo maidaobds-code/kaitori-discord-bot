@@ -19,7 +19,7 @@ const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
 const MANUAL_CHECK_MIN_INTERVAL_MS = Number(process.env.MANUAL_CHECK_MIN_INTERVAL_MS || 30000);
 const STATE_KEY = process.env.STATE_KEY || "kaitori:prices";
-const APP_VERSION = "2026-09-19-auto-refresh-v3";
+const APP_VERSION = "2026-09-19-direct-scrape-v4";
 const PRICE_MAX_AGE_MS = Number(process.env.PRICE_MAX_AGE_MS || 60000);
 const AUTO_REFRESH_ON_READ = process.env.AUTO_REFRESH_ON_READ !== "false";
 const ENABLE_INTERNAL_CRON = process.env.ENABLE_INTERNAL_CRON == null
@@ -92,11 +92,17 @@ async function loadState() {
 }
 
 async function saveState(state) {
-  if (hasRedisStore()) {
-    await redisCommand(["SET", STATE_KEY, JSON.stringify(state)]);
-    return;
-  }
   memoryState = state;
+
+  if (hasRedisStore()) {
+    try {
+      await redisCommand(["SET", STATE_KEY, JSON.stringify(state)]);
+      return;
+    } catch (e) {
+      console.error("Cannot write price state to Redis:", e.message);
+    }
+  }
+
   try {
     saveJSON(DATA_FILE, state);
   } catch (e) {
@@ -508,6 +514,33 @@ async function checkPrices({ manual = false } = {}) {
   return { ok: true, ...state };
 }
 
+async function scrapeLivePrices() {
+  const config = loadJSON(SOURCES_FILE, { sources: [] });
+  const sources = (Array.isArray(config) ? config : config.sources || []).filter(s => s.enabled);
+  const scraped = [];
+  const errors = [];
+
+  const results = await Promise.allSettled(sources.map(async source => ({
+    source,
+    products: await scrapeSource(source)
+  })));
+
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      scraped.push(...result.value.products);
+    } else {
+      const source = result.reason?.source || sources[results.indexOf(result)] || {};
+      const e = result.reason?.error || result.reason;
+      errors.push({ id: source.id, shop: source.shop, url: source.url, error: e?.message || String(e) });
+    }
+  }
+
+  const rows = buildComparison(scraped, []);
+  const state = { rows, updatedAt: new Date().toISOString(), errors };
+  memoryState = state;
+  return { ok: true, ...state };
+}
+
 function runPriceCheck(options = {}) {
   if (!runningCheck) {
     runningCheck = checkPrices(options).finally(() => {
@@ -533,6 +566,14 @@ app.get("/api/prices", async (req, res) => {
     res.json(state);
   } catch (e) {
     res.status(500).json({ rows: [], updatedAt: null, errors: [{ error: e?.message || String(e) }] });
+  }
+});
+
+app.get("/api/live-prices", async (req, res) => {
+  try {
+    res.json(await scrapeLivePrices());
+  } catch (e) {
+    res.status(500).json({ ok: false, rows: [], updatedAt: null, errors: [{ error: e?.message || String(e) }] });
   }
 });
 

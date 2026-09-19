@@ -283,7 +283,10 @@ function updateSummary(shops, products){
 }
 
 async function load(){
-  const res = await fetch(`/api/prices?refresh=1&_=${Date.now()}`, { cache: "no-store" });
+  let res = await fetch(`/api/live-prices?_=${Date.now()}`, { cache: "no-store" });
+  if (!res.ok) {
+    res = await fetch(`/api/prices?refresh=1&_=${Date.now()}`, { cache: "no-store" });
+  }
   if (!res.ok) throw new Error(`Price API returned ${res.status}`);
   const data = await res.json();
   const rawRows = data.rows || [];
