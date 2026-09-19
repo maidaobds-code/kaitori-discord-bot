@@ -336,7 +336,6 @@ async function load(){
         <td class="shop-cell ${isBest ? "best" : ""}">
           <div class="price">${yen(offer.buyPrice)}</div>
           <div class="profit ${profitClass(offer.profit)}">${profitText(offer.profit)}</div>
-          <a class="link" href="${safeHref(offer.url)}" target="_blank" rel="noopener noreferrer">Mo trang</a>
         </td>
       `;
     });
@@ -373,7 +372,6 @@ async function load(){
             <div class="price">${yen(offer.buyPrice)}</div>
           </div>
           <div class="profit ${profitClass(offer.profit)}">${profitText(offer.profit)}</div>
-          <a class="link" href="${safeHref(offer.url)}" target="_blank" rel="noopener noreferrer">Mo trang</a>
         </div>
       `;
     });
