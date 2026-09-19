@@ -24,6 +24,7 @@ const ENABLE_INTERNAL_CRON = process.env.ENABLE_INTERNAL_CRON == null
   : process.env.ENABLE_INTERNAL_CRON === "true";
 let runningCheck = null;
 let lastManualCheckAt = 0;
+let memoryState = null;
 
 app.use(express.json());
 app.use((req, res, next) => {
@@ -83,6 +84,7 @@ async function loadState() {
       console.error("Cannot read price state from Redis:", e.message);
     }
   }
+  if (memoryState) return memoryState;
   return loadJSON(DATA_FILE, { rows: [], updatedAt: null, errors: [] });
 }
 
@@ -91,7 +93,12 @@ async function saveState(state) {
     await redisCommand(["SET", STATE_KEY, JSON.stringify(state)]);
     return;
   }
-  saveJSON(DATA_FILE, state);
+  memoryState = state;
+  try {
+    saveJSON(DATA_FILE, state);
+  } catch (e) {
+    console.error("Cannot write local price state:", e.message);
+  }
 }
 
 function parseYen(value = "") {

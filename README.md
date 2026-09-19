@@ -8,7 +8,7 @@ Dashboard theo doi gia thu mua iPhone 18, so sanh voi gia goc Apple Japan, sap x
 - Lay nhieu san pham iPhone 18 tu cac trang kaitori trong `sources.json`
 - So sanh `gia thu mua - gia Apple`
 - Sap xep profit tu cao den thap
-- Local luu du lieu vao `data/prices.json`; production nen luu vao Upstash Redis
+- Local luu du lieu vao `data/prices.json`; production can Upstash Redis de luu gia ben vung
 - Gui Discord webhook khi gia thu mua hoac profit thay doi
 - Local cron mac dinh: `*/1 * * * *`
 - Vercel Cron goi `/api/cron/check-prices` moi phut theo `vercel.json`
@@ -46,7 +46,9 @@ Khong co `DISCORD_WEBHOOK_URL` thi dashboard van chay, chi khong gui thong bao D
 
 ## Deploy Vercel
 
-Tren Vercel, khong nen dung `node-cron` va khong nen ghi gia vao file JSON vi serverless filesystem khong ben. App nay da co endpoint `GET /api/cron/check-prices` va `vercel.json` de Vercel Cron goi moi phut.
+Tren Vercel, khong nen dung `node-cron` va khong the ghi gia vao file JSON vi serverless filesystem read-only/khong ben. App nay da co endpoint `GET /api/cron/check-prices` va `vercel.json` de Vercel Cron goi moi phut.
+
+Upstash Redis la bat buoc neu muon gia cap nhat dung va ben vung tren production. Neu thieu Redis, app chi giu gia moi trong memory tam thoi cua mot server instance va co the mat khi Vercel cold start.
 
 Set environment variables tren Vercel:
 
