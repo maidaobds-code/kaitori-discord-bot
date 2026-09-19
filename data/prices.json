@@ -14,7 +14,7 @@
       "profit": 9200,
       "previousBuyPrice": 249000,
       "previousProfit": 9200,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18promax-512gb",
@@ -30,7 +30,7 @@
       "profit": 4200,
       "previousBuyPrice": 279000,
       "previousProfit": 4200,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18promax-1tb",
@@ -46,7 +46,7 @@
       "profit": 3200,
       "previousBuyPrice": 348000,
       "previousProfit": 3200,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "one-chome-index:iphone18promax-256gb",
@@ -62,7 +62,7 @@
       "profit": 1200,
       "previousBuyPrice": 241000,
       "previousProfit": 1200,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "one-chome-index:iphone18promax-512gb",
@@ -78,7 +78,7 @@
       "profit": -800,
       "previousBuyPrice": 274000,
       "previousProfit": -800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "one-chome-index:iphone18promax-1tb",
@@ -94,7 +94,7 @@
       "profit": -3800,
       "previousBuyPrice": 341000,
       "previousProfit": -3800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18pro-512gb",
@@ -110,7 +110,7 @@
       "profit": -5800,
       "previousBuyPrice": 249000,
       "previousProfit": -5800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18pro-256gb",
@@ -126,7 +126,7 @@
       "profit": -6800,
       "previousBuyPrice": 213000,
       "previousProfit": -6800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.401Z"
     },
     {
       "id": "one-chome-index:iphone18pro-256gb",
@@ -142,7 +142,7 @@
       "profit": -11800,
       "previousBuyPrice": 208000,
       "previousProfit": -11800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "one-chome-index:iphone18pro-512gb",
@@ -158,7 +158,7 @@
       "profit": -12800,
       "previousBuyPrice": 242000,
       "previousProfit": -12800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18pro-1tb",
@@ -174,7 +174,7 @@
       "profit": -13800,
       "previousBuyPrice": 311000,
       "previousProfit": -13800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18promax-2tb",
@@ -190,7 +190,7 @@
       "profit": -13800,
       "previousBuyPrice": 436000,
       "previousProfit": -13800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "one-chome-index:iphone18pro-1tb",
@@ -206,7 +206,7 @@
       "profit": -14800,
       "previousBuyPrice": 310000,
       "previousProfit": -14800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "kaitorishouten-iphone18:iphone18pro-2tb",
@@ -222,7 +222,7 @@
       "profit": -18800,
       "previousBuyPrice": 411000,
       "previousProfit": -18800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "one-chome-index:iphone18pro-2tb",
@@ -238,7 +238,7 @@
       "profit": -19800,
       "previousBuyPrice": 410000,
       "previousProfit": -19800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     },
     {
       "id": "one-chome-index:iphone18promax-2tb",
@@ -254,9 +254,16 @@
       "profit": -21800,
       "previousBuyPrice": 428000,
       "previousProfit": -21800,
-      "checkedAt": "2026-09-19T06:24:00.770Z"
+      "checkedAt": "2026-09-19T06:28:01.402Z"
     }
   ],
-  "updatedAt": "2026-09-19T06:24:00.770Z",
-  "errors": []
+  "updatedAt": "2026-09-19T06:28:01.402Z",
+  "errors": [
+    {
+      "id": "mobile-mix-iphone18",
+      "shop": "Mobile Mix",
+      "url": "https://mobile-mix.jp/",
+      "error": "Mobile Mix did not return the price table (anti-bot or temporary page)"
+    }
+  ]
 }

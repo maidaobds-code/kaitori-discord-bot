@@ -457,8 +457,55 @@ function runPriceCheck(options = {}) {
   return runningCheck;
 }
 
+async function scrapeLivePrices() {
+  const config = loadJSON(SOURCES_FILE, { sources: [] });
+  const sources = (Array.isArray(config) ? config : config.sources || []).filter(source => source.enabled);
+  const scraped = [];
+  const errors = [];
+
+  const results = await Promise.allSettled(sources.map(async source => ({
+    source,
+    products: await scrapeSource(source)
+  })));
+
+  results.forEach((result, index) => {
+    if (result.status === "fulfilled") {
+      scraped.push(...result.value.products);
+      return;
+    }
+
+    const source = sources[index];
+    errors.push({
+      id: source.id,
+      shop: source.shop,
+      url: source.url,
+      error: result.reason?.message || String(result.reason)
+    });
+  });
+
+  return {
+    ok: true,
+    rows: buildComparison(scraped, []),
+    updatedAt: new Date().toISOString(),
+    errors
+  };
+}
+
 app.get("/api/prices", (req, res) => {
   res.json(loadJSON(DATA_FILE, { rows: [], updatedAt: null, errors: [] }));
+});
+
+app.get("/api/live-prices", async (req, res) => {
+  try {
+    res.json(await scrapeLivePrices());
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      rows: [],
+      updatedAt: null,
+      errors: [{ error: error?.message || String(error) }]
+    });
+  }
 });
 
 app.get("/api/sources", (req, res) => {
