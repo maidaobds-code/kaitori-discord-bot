@@ -19,6 +19,7 @@ const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
 const MANUAL_CHECK_MIN_INTERVAL_MS = Number(process.env.MANUAL_CHECK_MIN_INTERVAL_MS || 30000);
 const STATE_KEY = process.env.STATE_KEY || "kaitori:prices";
+const APP_VERSION = "2026-09-19-state-store-v2";
 const ENABLE_INTERNAL_CRON = process.env.ENABLE_INTERNAL_CRON == null
   ? !process.env.VERCEL
   : process.env.ENABLE_INTERNAL_CRON === "true";
@@ -526,7 +527,20 @@ app.get("/api/sources", (req, res) => {
   res.json(loadJSON(SOURCES_FILE, { sources: [] }));
 });
 
-app.post("/api/check", async (req, res) => {
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    version: APP_VERSION,
+    store: hasRedisStore() ? "upstash-redis" : "memory-file-fallback",
+    stateKey: STATE_KEY,
+    internalCron: ENABLE_INTERNAL_CRON,
+    vercel: Boolean(process.env.VERCEL),
+    hasRedisUrl: Boolean(process.env.UPSTASH_REDIS_REST_URL),
+    hasRedisToken: Boolean(process.env.UPSTASH_REDIS_REST_TOKEN)
+  });
+});
+
+async function handleManualCheck(req, res) {
   try {
     const now = Date.now();
     if (now - lastManualCheckAt < MANUAL_CHECK_MIN_INTERVAL_MS) {
@@ -538,7 +552,10 @@ app.post("/api/check", async (req, res) => {
   } catch (e) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
-});
+}
+
+app.get("/api/check", handleManualCheck);
+app.post("/api/check", handleManualCheck);
 
 app.get("/api/cron/check-prices", async (req, res) => {
   if (!isCronAuthorized(req)) {
