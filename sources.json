@@ -21,7 +21,7 @@
     },
     {
       "id": "kaitorishouten-iphone18",
-      "shop": "買取商店",
+      "shop": "Kaitori Shouten",
       "type": "buyback",
       "adapter": "kaitorishouten",
       "enabled": true,
@@ -46,7 +46,7 @@
     },
     {
       "id": "one-chome-index",
-      "shop": "買取1丁目",
+      "shop": "1-Chome",
       "type": "buyback",
       "adapter": "onechome",
       "enabled": true,

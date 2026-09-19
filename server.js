@@ -17,7 +17,9 @@ const PORT = Number(process.env.PORT || 3000);
 const DATA_FILE = path.join(__dirname, "data", "prices.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
+const MANUAL_CHECK_MIN_INTERVAL_MS = Number(process.env.MANUAL_CHECK_MIN_INTERVAL_MS || 30000);
 let runningCheck = null;
+let lastManualCheckAt = 0;
 
 app.use(express.json());
 app.use((req, res, next) => {
@@ -38,7 +40,8 @@ app.use(express.static(path.join(__dirname, "public")));
 function loadJSON(file, fallback) {
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch {
+  } catch (e) {
+    console.error(`Cannot read JSON file ${path.basename(file)}:`, e.message);
     return fallback;
   }
 }
@@ -49,8 +52,11 @@ function saveJSON(file, data) {
 }
 
 function parseYen(value = "") {
-  const text = String(value).replace(/[,\s]/g, "");
-  const match = text.match(/(?:¥|￥)?(\d{4,9})(?:円)?/);
+  const text = String(value)
+    .replace(/[,\s\u00a0]/g, "")
+    .replace(/[￥﹩]/g, "¥")
+    .replace(/円/g, "¥");
+  const match = text.match(/¥?(\d{4,9})¥?/);
   if (!match) return null;
   const price = Number(match[1]);
   return Number.isFinite(price) && price >= 10000 && price <= 2000000 ? price : null;
@@ -59,7 +65,7 @@ function parseYen(value = "") {
 function normalizeName(text = "") {
   return String(text)
     .replace(/\s+/g, " ")
-    .replace(/（.*?）|\(.*?\)|\[.*?\]/g, "")
+    .replace(/【.*?】|\[.*?\]|\(.*?\)/g, "")
     .trim();
 }
 
@@ -103,7 +109,7 @@ function extractProductsFromText(text, source) {
     const inferred = inferProduct(lines[i]);
     if (!inferred) continue;
     const nearby = lines.slice(i, i + 8).join(" ");
-    const prices = [...nearby.matchAll(/(?:¥|￥)?\s?[\d,]{5,9}\s?円?/g)]
+    const prices = [...nearby.matchAll(/[¥￥]?\s?[\d,]{5,9}\s?(?:円|¥|￥)?/g)]
       .map(match => parseYen(match[0]))
       .filter(Boolean);
     if (!prices.length) continue;
@@ -128,7 +134,7 @@ function extractProductsFromHtml(html, source) {
     const text = $(el).text().replace(/\s+/g, " ").trim();
     const inferred = inferProduct(text);
     if (!inferred) return;
-    const prices = [...text.matchAll(/(?:¥|￥)?\s?[\d,]{5,9}\s?円?/g)]
+    const prices = [...text.matchAll(/[¥￥]?\s?[\d,]{5,9}\s?(?:円|¥|￥)?/g)]
       .map(match => parseYen(match[0]))
       .filter(Boolean);
     if (!prices.length) return;
@@ -291,7 +297,7 @@ async function scrapePastec(source) {
     const inferred = inferProduct(productMatch[0]);
     if (!inferred) continue;
 
-    const prices = [...chunk.matchAll(/(?:¥|￥)?\s?[\d,]{3,9}\s?円?/g)]
+    const prices = [...chunk.matchAll(/[¥￥]?\s?[\d,]{4,9}\s?(?:円|¥|￥)?/g)]
       .map(match => parseYen(match[0]))
       .filter(Boolean);
 
@@ -313,7 +319,7 @@ async function scrapePastec(source) {
   }
 
   if (!products.length) {
-    const fallback = [...bodyText.matchAll(/iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512|1|2)TB?[^\n]{0,120}([\d,]{3,9})円/gi)]
+    const fallback = [...bodyText.matchAll(/iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512|1|2)TB?[^\n]{0,120}([¥￥]?\s?[\d,]{4,9}\s?(?:円|¥|￥)?)/gi)]
       .map(match => {
         const inferred = inferProduct(match[0]);
         const price = parseYen(match[1]);
@@ -405,9 +411,9 @@ async function checkPrices({ manual = false } = {}) {
 
   if (changed.length) {
     const lines = changed.slice(0, 10).map(row => {
-      const profitLabel = row.profit == null ? "Lợi nhuận: N/A" : `Lợi nhuận: ${row.profit >= 0 ? "+" : ""}¥${row.profit.toLocaleString("ja-JP")}`;
+      const profitLabel = row.profit == null ? "Loi nhuan: N/A" : `Loi nhuan: ${row.profit >= 0 ? "+" : ""}¥${row.profit.toLocaleString("ja-JP")}`;
       return [
-        `📉 ${row.model} ${row.storage}`,
+        `${row.model} ${row.storage}`,
         `Shop: ${row.shop}`,
         `Mua: ¥${row.buyPrice.toLocaleString("ja-JP")}`,
         `Apple: ${row.applePrice ? `¥${row.applePrice.toLocaleString("ja-JP")}` : "N/A"}`,
@@ -443,6 +449,12 @@ app.get("/api/sources", (req, res) => {
 
 app.post("/api/check", async (req, res) => {
   try {
+    const now = Date.now();
+    if (now - lastManualCheckAt < MANUAL_CHECK_MIN_INTERVAL_MS) {
+      res.status(429).json({ ok: false, error: "Please wait before checking again." });
+      return;
+    }
+    lastManualCheckAt = now;
     res.json(await runPriceCheck({ manual: true }));
   } catch (e) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });

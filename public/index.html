@@ -205,10 +205,19 @@ function escapeHtml(value){
   })[char]);
 }
 
+const allowedLinkHosts = new Set([
+  "www.apple.com",
+  "www.kaitorishouten-co.jp",
+  "pastec.net",
+  "www.1-chome.com"
+]);
+
 function safeHref(value){
   try {
     const url = new URL(String(value ?? ""), window.location.origin);
-    return ["http:", "https:"].includes(url.protocol) ? escapeHtml(url.href) : "#";
+    return ["http:", "https:"].includes(url.protocol) && allowedLinkHosts.has(url.hostname)
+      ? escapeHtml(url.href)
+      : "#";
   } catch {
     return "#";
   }
