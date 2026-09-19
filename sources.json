@@ -52,6 +52,15 @@
       "enabled": true,
       "url": "https://www.1-chome.com/index",
       "keywords": ["iPhone 18 Pro", "iPhone 18 Pro Max"]
+    },
+    {
+      "id": "mobile-mix-iphone18",
+      "shop": "Mobile Mix",
+      "type": "buyback",
+      "adapter": "mobilemix",
+      "enabled": false,
+      "url": "https://mobile-mix.jp/",
+      "note": "Temporarily disabled because the server response does not consistently include the price table for automated requests."
     }
   ]
 }
