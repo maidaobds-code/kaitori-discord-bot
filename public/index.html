@@ -120,6 +120,7 @@
     .positive { color:var(--positive); background:var(--positive-bg); }
     .negative { color:var(--negative); background:var(--negative-bg); }
     .missing { color:var(--missing); }
+    .stale { display:block; margin-top:6px; color:#9a3412; font-size:12px; font-weight:750; }
     td.best { background:var(--best) !important; box-shadow:inset 3px 0 0 #f2b705; }
     a { color:var(--primary); text-decoration:none; font-weight:650; }
     a:hover { text-decoration:underline; }
@@ -336,6 +337,7 @@ async function load(){
         <td class="shop-cell ${isBest ? "best" : ""}">
           <div class="price">${yen(offer.buyPrice)}</div>
           <div class="profit ${profitClass(offer.profit)}">${profitText(offer.profit)}</div>
+          ${offer.stale ? `<span class="stale">Gia cu - nguon dang loi</span>` : ""}
         </td>
       `;
     });
@@ -372,6 +374,7 @@ async function load(){
             <div class="price">${yen(offer.buyPrice)}</div>
           </div>
           <div class="profit ${profitClass(offer.profit)}">${profitText(offer.profit)}</div>
+          ${offer.stale ? `<span class="stale">Gia cu - nguon dang loi</span>` : ""}
         </div>
       `;
     });

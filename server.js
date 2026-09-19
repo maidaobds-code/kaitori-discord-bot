@@ -18,6 +18,10 @@ const DATA_FILE = path.join(__dirname, "data", "prices.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
 const MANUAL_CHECK_MIN_INTERVAL_MS = Number(process.env.MANUAL_CHECK_MIN_INTERVAL_MS || 30000);
+const STATE_KEY = process.env.STATE_KEY || "kaitori:prices";
+const ENABLE_INTERNAL_CRON = process.env.ENABLE_INTERNAL_CRON == null
+  ? !process.env.VERCEL
+  : process.env.ENABLE_INTERNAL_CRON === "true";
 let runningCheck = null;
 let lastManualCheckAt = 0;
 
@@ -51,12 +55,51 @@ function saveJSON(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
 }
 
+function hasRedisStore() {
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+}
+
+async function redisCommand(command) {
+  const { data } = await axios.post(process.env.UPSTASH_REDIS_REST_URL, command, {
+    timeout: 10000,
+    headers: {
+      Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
+      "Content-Type": "application/json"
+    }
+  });
+
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+  return data?.result;
+}
+
+async function loadState() {
+  if (hasRedisStore()) {
+    try {
+      const value = await redisCommand(["GET", STATE_KEY]);
+      return value ? JSON.parse(value) : { rows: [], updatedAt: null, errors: [] };
+    } catch (e) {
+      console.error("Cannot read price state from Redis:", e.message);
+    }
+  }
+  return loadJSON(DATA_FILE, { rows: [], updatedAt: null, errors: [] });
+}
+
+async function saveState(state) {
+  if (hasRedisStore()) {
+    await redisCommand(["SET", STATE_KEY, JSON.stringify(state)]);
+    return;
+  }
+  saveJSON(DATA_FILE, state);
+}
+
 function parseYen(value = "") {
   const text = String(value)
     .replace(/[,\s\u00a0]/g, "")
-    .replace(/[￥﹩]/g, "¥")
-    .replace(/円/g, "¥");
-  const match = text.match(/¥?(\d{4,9})¥?/);
+    .replace(/[\uffe5]/g, "\u00a5")
+    .replace(/\u5186/g, "\u00a5");
+  const match = text.match(/\u00a5?(\d{4,9})\u00a5?/);
   if (!match) return null;
   const price = Number(match[1]);
   return Number.isFinite(price) && price >= 10000 && price <= 2000000 ? price : null;
@@ -109,7 +152,7 @@ function extractProductsFromText(text, source) {
     const inferred = inferProduct(lines[i]);
     if (!inferred) continue;
     const nearby = lines.slice(i, i + 8).join(" ");
-    const prices = [...nearby.matchAll(/[¥￥]?\s?[\d,]{5,9}\s?(?:円|¥|￥)?/g)]
+    const prices = [...nearby.matchAll(/[\u00a5\uffe5]?\s?[\d,]{5,9}\s?(?:\u5186|\u00a5|\uffe5)?/g)]
       .map(match => parseYen(match[0]))
       .filter(Boolean);
     if (!prices.length) continue;
@@ -134,7 +177,7 @@ function extractProductsFromHtml(html, source) {
     const text = $(el).text().replace(/\s+/g, " ").trim();
     const inferred = inferProduct(text);
     if (!inferred) return;
-    const prices = [...text.matchAll(/[¥￥]?\s?[\d,]{5,9}\s?(?:円|¥|￥)?/g)]
+    const prices = [...text.matchAll(/[\u00a5\uffe5]?\s?[\d,]{5,9}\s?(?:\u5186|\u00a5|\uffe5)?/g)]
       .map(match => parseYen(match[0]))
       .filter(Boolean);
     if (!prices.length) return;
@@ -297,7 +340,7 @@ async function scrapePastec(source) {
     const inferred = inferProduct(productMatch[0]);
     if (!inferred) continue;
 
-    const prices = [...chunk.matchAll(/[¥￥]?\s?[\d,]{4,9}\s?(?:円|¥|￥)?/g)]
+    const prices = [...chunk.matchAll(/[\u00a5\uffe5]?\s?[\d,]{4,9}\s?(?:\u5186|\u00a5|\uffe5)?/g)]
       .map(match => parseYen(match[0]))
       .filter(Boolean);
 
@@ -319,7 +362,7 @@ async function scrapePastec(source) {
   }
 
   if (!products.length) {
-    const fallback = [...bodyText.matchAll(/iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512|1|2)TB?[^\n]{0,120}([¥￥]?\s?[\d,]{4,9}\s?(?:円|¥|￥)?)/gi)]
+    const fallback = [...bodyText.matchAll(/iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512|1|2)TB?[^\n]{0,120}([\u00a5\uffe5]?\s?[\d,]{4,9}\s?(?:\u5186|\u00a5|\uffe5)?)/gi)]
       .map(match => {
         const inferred = inferProduct(match[0]);
         const price = parseYen(match[1]);
@@ -372,6 +415,30 @@ function buildComparison(scraped, previousRows = []) {
   }).sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
 }
 
+function mergeRowsWithStalePrevious(rows, previousRows = [], errors = []) {
+  const nextById = new Map(rows.map(row => [row.id, row]));
+  const failedSourceIds = new Set(errors.map(error => error.id).filter(Boolean));
+
+  for (const row of previousRows) {
+    if (!failedSourceIds.has(row.sourceId) || nextById.has(row.id)) continue;
+    const error = errors.find(item => item.id === row.sourceId);
+    nextById.set(row.id, {
+      ...row,
+      stale: true,
+      staleReason: error?.error || "Source failed during the latest check"
+    });
+  }
+
+  return [...nextById.values()].sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
+}
+
+function isCronAuthorized(req) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return true;
+  const header = req.get("authorization") || "";
+  return header === `Bearer ${secret}` || req.query.token === secret;
+}
+
 async function sendDiscord(message, embeds = []) {
   const url = process.env.DISCORD_WEBHOOK_URL;
   if (!url) return;
@@ -381,7 +448,7 @@ async function sendDiscord(message, embeds = []) {
 async function checkPrices({ manual = false } = {}) {
   const config = loadJSON(SOURCES_FILE, { sources: [] });
   const sources = (Array.isArray(config) ? config : config.sources || []).filter(s => s.enabled);
-  const previous = loadJSON(DATA_FILE, { rows: [] });
+  const previous = await loadState();
   const scraped = [];
   const errors = [];
 
@@ -400,9 +467,10 @@ async function checkPrices({ manual = false } = {}) {
     }
   }
 
-  const rows = buildComparison(scraped, previous.rows || []);
+  const freshRows = buildComparison(scraped, previous.rows || []);
+  const rows = mergeRowsWithStalePrevious(freshRows, previous.rows || [], errors);
   const state = { rows, updatedAt: new Date().toISOString(), errors };
-  saveJSON(DATA_FILE, state);
+  await saveState(state);
 
   const changed = rows.filter(row =>
     row.previousBuyPrice !== null &&
@@ -411,12 +479,12 @@ async function checkPrices({ manual = false } = {}) {
 
   if (changed.length) {
     const lines = changed.slice(0, 10).map(row => {
-      const profitLabel = row.profit == null ? "Loi nhuan: N/A" : `Loi nhuan: ${row.profit >= 0 ? "+" : ""}¥${row.profit.toLocaleString("ja-JP")}`;
+      const profitLabel = row.profit == null ? "Loi nhuan: N/A" : `Loi nhuan: ${row.profit >= 0 ? "+" : ""}JPY ${row.profit.toLocaleString("ja-JP")}`;
       return [
         `${row.model} ${row.storage}`,
         `Shop: ${row.shop}`,
-        `Mua: ¥${row.buyPrice.toLocaleString("ja-JP")}`,
-        `Apple: ${row.applePrice ? `¥${row.applePrice.toLocaleString("ja-JP")}` : "N/A"}`,
+        `Mua: JPY ${row.buyPrice.toLocaleString("ja-JP")}`,
+        `Apple: ${row.applePrice ? `JPY ${row.applePrice.toLocaleString("ja-JP")}` : "N/A"}`,
         profitLabel,
         `Link: ${row.url}`,
         ""
@@ -439,8 +507,12 @@ function runPriceCheck(options = {}) {
   return runningCheck;
 }
 
-app.get("/api/prices", (req, res) => {
-  res.json(loadJSON(DATA_FILE, { rows: [], updatedAt: null, errors: [] }));
+app.get("/api/prices", async (req, res) => {
+  try {
+    res.json(await loadState());
+  } catch (e) {
+    res.status(500).json({ rows: [], updatedAt: null, errors: [{ error: e?.message || String(e) }] });
+  }
 });
 
 app.get("/api/sources", (req, res) => {
@@ -461,13 +533,28 @@ app.post("/api/check", async (req, res) => {
   }
 });
 
-cron.schedule(CHECK_CRON, () => {
-  runPriceCheck().catch(err => console.error("Cron check error:", err));
+app.get("/api/cron/check-prices", async (req, res) => {
+  if (!isCronAuthorized(req)) {
+    res.status(401).json({ ok: false, error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    res.json(await runPriceCheck());
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
 });
 
-runPriceCheck().catch(err => console.error("Initial check error:", err));
+if (ENABLE_INTERNAL_CRON) {
+  cron.schedule(CHECK_CRON, () => {
+    runPriceCheck().catch(err => console.error("Cron check error:", err));
+  });
+
+  runPriceCheck().catch(err => console.error("Initial check error:", err));
+}
 
 app.listen(PORT, () => {
   console.log(`Kaitori bot running: http://localhost:${PORT}`);
-  console.log(`Check schedule: ${CHECK_CRON}`);
+  console.log(`Internal cron: ${ENABLE_INTERNAL_CRON ? CHECK_CRON : "disabled"}`);
 });

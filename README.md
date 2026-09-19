@@ -8,9 +8,10 @@ Dashboard theo doi gia thu mua iPhone 18, so sanh voi gia goc Apple Japan, sap x
 - Lay nhieu san pham iPhone 18 tu cac trang kaitori trong `sources.json`
 - So sanh `gia thu mua - gia Apple`
 - Sap xep profit tu cao den thap
-- Luu du lieu moi nhat vao `data/prices.json`
+- Local luu du lieu vao `data/prices.json`; production nen luu vao Upstash Redis
 - Gui Discord webhook khi gia thu mua hoac profit thay doi
-- Cron mac dinh: `*/1 * * * *`
+- Local cron mac dinh: `*/1 * * * *`
+- Vercel Cron goi `/api/cron/check-prices` moi phut theo `vercel.json`
 
 ## Cai dat
 
@@ -34,9 +35,32 @@ Tao file `.env` tu `.env.example`:
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 PORT=3000
 CHECK_CRON=*/1 * * * *
+ENABLE_INTERNAL_CRON=true
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+STATE_KEY=kaitori:prices
+CRON_SECRET=
 ```
 
 Khong co `DISCORD_WEBHOOK_URL` thi dashboard van chay, chi khong gui thong bao Discord.
+
+## Deploy Vercel
+
+Tren Vercel, khong nen dung `node-cron` va khong nen ghi gia vao file JSON vi serverless filesystem khong ben. App nay da co endpoint `GET /api/cron/check-prices` va `vercel.json` de Vercel Cron goi moi phut.
+
+Set environment variables tren Vercel:
+
+```env
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+STATE_KEY=kaitori:prices
+ENABLE_INTERNAL_CRON=false
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+Neu dat `CRON_SECRET`, goi cron thu cong can header `Authorization: Bearer <secret>` hoac query `?token=<secret>`. Luu y: Vercel Cron mac dinh khong gan custom Authorization header, nen chi bat `CRON_SECRET` neu ban dung cron ben ngoai hoac them token vao path cron.
+
+Khi mot nguon loi tam thoi, app giu gia cu cua nguon do va gan co `stale` de dashboard hien "Gia cu - nguon dang loi" thay vi xoa bang gia.
 
 ## Cau hinh nguon gia
 
@@ -76,6 +100,7 @@ Parser se tim cac dong co dang `iPhone18 Pro Max 256GB` va gia yen gan do. Cac t
 - `GET /api/prices`: du lieu bang profit moi nhat
 - `GET /api/sources`: cau hinh nguon
 - `POST /api/check`: kiem tra ngay
+- `GET /api/cron/check-prices`: endpoint cho Vercel Cron/cron ben ngoai
 
 ## Luu y
 
