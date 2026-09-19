@@ -508,6 +508,15 @@ app.get("/api/live-prices", async (req, res) => {
   }
 });
 
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    version: "2026-09-19-vercel-serverless-fix",
+    vercel: Boolean(process.env.VERCEL),
+    hasLivePrices: true
+  });
+});
+
 app.get("/api/sources", (req, res) => {
   res.json(loadJSON(SOURCES_FILE, { sources: [] }));
 });
@@ -520,13 +529,17 @@ app.post("/api/check", async (req, res) => {
   }
 });
 
-cron.schedule(CHECK_CRON, () => {
-  runPriceCheck().catch(err => console.error("Cron check error:", err));
-});
+if (!process.env.VERCEL) {
+  cron.schedule(CHECK_CRON, () => {
+    runPriceCheck().catch(err => console.error("Cron check error:", err));
+  });
 
-runPriceCheck().catch(err => console.error("Initial check error:", err));
+  runPriceCheck().catch(err => console.error("Initial check error:", err));
 
-app.listen(PORT, () => {
-  console.log(`Kaitori bot running: http://localhost:${PORT}`);
-  console.log(`Check schedule: ${CHECK_CRON}`);
-});
+  app.listen(PORT, () => {
+    console.log(`Kaitori bot running: http://localhost:${PORT}`);
+    console.log(`Check schedule: ${CHECK_CRON}`);
+  });
+}
+
+export default app;
