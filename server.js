@@ -17,6 +17,7 @@ const PORT = Number(process.env.PORT || 3000);
 const DATA_FILE = path.join(__dirname, "data", "prices.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
+const IS_CHECKER_URL = process.env.IS_CHECKER_URL || "https://is-checker.com/iphone17_beta.html?5560";
 let runningCheck = null;
 
 app.use(express.json());
@@ -491,6 +492,102 @@ async function scrapeLivePrices() {
   };
 }
 
+function cleanCellText(value = "") {
+  return String(value).replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").trim();
+}
+
+function sanitizeTableHtml(html = "") {
+  const $ = cheerio.load(`<root>${html}</root>`, null, false);
+  $("script,style,iframe,object,embed").remove();
+  $("*").each((_, el) => {
+    const node = $(el);
+    for (const attr of Object.keys(el.attribs || {})) {
+      if (attr.toLowerCase().startsWith("on") || attr.toLowerCase() === "style") {
+        node.removeAttr(attr);
+      }
+    }
+    if (node.is("a")) {
+      const href = node.attr("href") || "";
+      if (!/^https?:\/\//i.test(href)) node.removeAttr("href");
+      node.attr("target", "_blank");
+      node.attr("rel", "noopener noreferrer");
+    }
+  });
+  return $("root").html() || "";
+}
+
+async function scrapeIsChecker() {
+  const html = await fetchHtml(IS_CHECKER_URL);
+  const $ = cheerio.load(html);
+  const table = $("table.dataframe").first();
+  if (!table.length) {
+    throw new Error("Could not find is-checker price table");
+  }
+
+  const columns = table.find("thead tr").first().find("th,td").map((index, cell) => {
+    const el = $(cell);
+    return {
+      index,
+      label: cleanCellText(el.clone().find(".shop-xlinks").remove().end().text()),
+      html: sanitizeTableHtml(el.html() || ""),
+      shop: el.attr("data-shop") || null,
+      store: el.attr("data-store") || null,
+      teika: el.attr("data-teika") || null,
+      className: el.attr("class") || ""
+    };
+  }).get();
+
+  const rows = table.find("tbody tr").map((rowIndex, row) => {
+    const tr = $(row);
+    const cells = tr.find("td,th").map((cellIndex, cell) => {
+      const el = $(cell);
+      return {
+        index: cellIndex,
+        text: cleanCellText(el.text()),
+        html: sanitizeTableHtml(el.html() || ""),
+        shop: el.attr("data-shop") || null,
+        store: el.attr("data-store") || null,
+        teika: el.attr("data-teika") || null,
+        className: el.attr("class") || "",
+        isBest: el.hasClass("is-best")
+      };
+    }).get();
+
+    return {
+      index: rowIndex,
+      kind: cleanCellText(cells[0]?.text),
+      capacity: tr.attr("data-cap") || cleanCellText(cells[1]?.text),
+      color: tr.attr("data-color") || cleanCellText(cells[2]?.text),
+      teikaOld: Number(tr.attr("data-teika-old")) || null,
+      teikaNew: Number(tr.attr("data-teika-new")) || null,
+      isUpdateRow: cells.some(cell => cell.className.includes("upd-row")),
+      cells
+    };
+  }).get();
+
+  const dataRows = rows.filter(row => !row.isUpdateRow);
+  const bestProfit = dataRows.reduce((best, row) => {
+    const raw = row.cells[4]?.text || "";
+    const match = raw.replace(/,/g, "").match(/[+-]?\d+/);
+    if (!match) return best;
+    return Math.max(best, Number(match[0]));
+  }, -Infinity);
+
+  return {
+    ok: true,
+    sourceUrl: IS_CHECKER_URL,
+    updatedAt: new Date().toISOString(),
+    columns,
+    rows,
+    summary: {
+      rowCount: dataRows.length,
+      shopCount: columns.filter(column => column.shop).length,
+      storeCount: columns.filter(column => column.store).length,
+      bestProfit: Number.isFinite(bestProfit) ? bestProfit : null
+    }
+  };
+}
+
 app.get("/api/prices", (req, res) => {
   res.json(loadJSON(DATA_FILE, { rows: [], updatedAt: null, errors: [] }));
 });
@@ -503,6 +600,22 @@ app.get("/api/live-prices", async (req, res) => {
       ok: false,
       rows: [],
       updatedAt: null,
+      errors: [{ error: error?.message || String(error) }]
+    });
+  }
+});
+
+app.get("/api/is-checker", async (req, res) => {
+  try {
+    res.json(await scrapeIsChecker());
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      sourceUrl: IS_CHECKER_URL,
+      updatedAt: null,
+      columns: [],
+      rows: [],
+      summary: { rowCount: 0, shopCount: 0, storeCount: 0, bestProfit: null },
       errors: [{ error: error?.message || String(error) }]
     });
   }
@@ -530,11 +643,13 @@ app.post("/api/check", async (req, res) => {
 });
 
 if (!process.env.VERCEL) {
-  cron.schedule(CHECK_CRON, () => {
-    runPriceCheck().catch(err => console.error("Cron check error:", err));
-  });
+  if (process.env.DISABLE_PRICE_CHECK !== "1") {
+    cron.schedule(CHECK_CRON, () => {
+      runPriceCheck().catch(err => console.error("Cron check error:", err));
+    });
 
-  runPriceCheck().catch(err => console.error("Initial check error:", err));
+    runPriceCheck().catch(err => console.error("Initial check error:", err));
+  }
 
   app.listen(PORT, () => {
     console.log(`Kaitori bot running: http://localhost:${PORT}`);
