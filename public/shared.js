@@ -97,7 +97,20 @@ async function fetchIsChecker({ force = false } = {}) {
 
   const refresh = force ? "&refresh=1" : "";
   const res = await fetch(`/api/is-checker?_=${Date.now()}${refresh}`, { cache: "no-store" });
-  const data = await res.json();
+  const contentType = res.headers.get("content-type") || "";
+  const raw = await res.text();
+  if (!contentType.includes("application/json")) {
+    const preview = raw.replace(/\s+/g, " ").trim().slice(0, 120);
+    throw new Error(`API khong tra ve JSON. Kiem tra route /api/is-checker. Response: ${preview || res.status}`);
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new Error("API tra ve JSON khong hop le.");
+  }
+
   if (!res.ok || !data.ok) throw new Error(data.errors?.[0]?.error || `API returned ${res.status}`);
 
   try {
