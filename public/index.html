@@ -143,12 +143,91 @@
     .kind-air { background: #dcfce7; font-weight: 850; }
     .kind-std { background: #eef2f2; font-weight: 850; }
     .note { display: block; color: var(--muted); font-size: 11px; min-height: 13px; }
+    .mobile-controls, .mobile-cards { display: none; }
+    .search-input {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      padding: 0 12px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-weight: 650;
+    }
+    .mobile-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .mobile-card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px;
+      background: #f8fbfb;
+      border-bottom: 1px solid var(--line);
+    }
+    .mobile-title { display: grid; gap: 2px; min-width: 0; }
+    .mobile-name { font-size: 15px; font-weight: 850; }
+    .mobile-sub { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .mobile-profit { text-align: right; font-size: 16px; font-weight: 900; white-space: nowrap; }
+    .mobile-retail { color: var(--muted); font-size: 11px; font-weight: 700; text-align: right; }
+    .mobile-offers { display: grid; gap: 6px; padding: 8px; }
+    .mobile-offer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: #fff;
+    }
+    .mobile-offer.change-new { box-shadow: inset 0 0 0 3px #f97316; background: #fff4e6; }
+    .mobile-offer.change-warm { box-shadow: inset 0 0 0 2px #fb923c; background: #fff7ed; }
+    .mobile-offer.change-soft { box-shadow: inset 0 0 0 1px #fdba74; background: #fffaf4; }
+    .mobile-shop { font-weight: 850; }
+    .mobile-price { text-align: right; font-size: 14px; font-weight: 900; }
+    .mobile-stock {
+      padding: 0 8px 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .mobile-more { padding: 0 8px 8px; }
+    .mobile-more summary {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      color: var(--accent);
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .mobile-empty {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 14px;
+      color: var(--muted);
+      font-weight: 750;
+    }
     .hidden { display: none; }
     .error { margin-top: 10px; border: 1px solid #fecdd3; background: #fff1f2; color: #9f1239; border-radius: 8px; padding: 12px; font-weight: 650; }
     @media (max-width: 720px) {
-      .app { padding: 10px; min-width: 900px; }
-      .topbar { margin: -10px -10px 10px; align-items: flex-start; }
+      .app { padding: 10px; min-width: 0; }
+      .topbar { margin: -10px -10px 10px; align-items: flex-start; position: static; flex-direction: column; }
+      .actions { width: 100%; overflow-x: auto; padding-bottom: 2px; }
+      .actions button, .actions .button { flex: 0 0 auto; }
       .summary { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+      .filters { position: sticky; top: 0; z-index: 12; max-height: 52vh; overflow: auto; }
+      .filter-row { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+      .filter-row label { flex: 0 0 auto; min-height: 34px; }
+      .table-wrap { display: none; }
+      .mobile-controls { display: grid; gap: 8px; margin-bottom: 10px; }
+      .mobile-cards { display: grid; gap: 10px; }
     }
   </style>
 </head>
@@ -184,12 +263,16 @@
     <div class="filter-row" id="colorFilters"></div>
     <div class="filter-row" id="shopFilters"></div>
   </section>
+  <section class="mobile-controls" aria-label="Tim nhanh">
+    <input id="quickSearch" class="search-input" type="search" placeholder="Tim nhanh: pro 512 den" autocomplete="off">
+  </section>
   <section class="table-wrap" aria-label="Bang bao gia">
     <table>
       <thead><tr id="headRow"></tr></thead>
       <tbody id="bodyRows"></tbody>
     </table>
   </section>
+  <section id="mobileCards" class="mobile-cards" aria-label="Danh sach san pham"></section>
   <div id="errors"></div>
 </main>
 <script src="/shared.js"></script>
@@ -320,6 +403,38 @@ function priceChangeClass(row, cell) {
   return "";
 }
 
+function rowHasStock(row, stores) {
+  return row.cells.some(cell => cell.store && stores.has(cell.store) && cell.text && cell.text !== "\u00d7");
+}
+
+function rowMatchesSearch(row) {
+  const input = document.getElementById("quickSearch");
+  const query = String(input?.value || "").trim().toLowerCase();
+  if (!query) return true;
+  const haystack = [
+    row.kind,
+    row.capacity,
+    row.color,
+    translateVi(row.color),
+    ...row.cells.filter(cell => cell.shop).map(cell => translateVi(cell.shop))
+  ].join(" ").toLowerCase();
+  return query.split(/\s+/).every(part => haystack.includes(part));
+}
+
+function filteredProductRows(data) {
+  const kinds = checkedSet("kindFilters");
+  const capacities = checkedSet("capacityFilters");
+  const colors = checkedSet("colorFilters");
+  const stores = new Set(data.columns.filter(column => column.store).map(column => column.store));
+  const stockOnly = document.getElementById("stockOnly").checked;
+  return sortProductRows(data.rows.filter(row => {
+    if (row.isUpdateRow) return false;
+    if (!kinds.has(row.kind) || !capacities.has(row.capacity) || !colors.has(row.color)) return false;
+    if (stockOnly && !rowHasStock(row, stores)) return false;
+    return rowMatchesSearch(row);
+  }));
+}
+
 function sortProductRows(rows) {
   const productRows = [...rows];
   if (state.sortMode === "name") {
@@ -336,6 +451,83 @@ function setSortMode(mode) {
   document.getElementById("sortBtn").classList.toggle("active", mode === "profit");
   document.getElementById("nameSortBtn").classList.toggle("active", mode === "name");
   renderTable();
+}
+
+function shopOffers(row, shops) {
+  const retail = Number(row.teikaOld) || parseNumber(row.cells[3]?.text);
+  return row.cells
+    .filter(cell => cell.shop && shops.has(cell.shop))
+    .map(cell => {
+      const price = parseNumber(cell.text);
+      return price == null ? null : {
+        cell,
+        price,
+        profit: retail ? price - retail : null
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.price - a.price);
+}
+
+function stockLocations(row) {
+  const locations = row.cells
+    .filter(cell => cell.store && cell.text && cell.text !== "\u00d7")
+    .map(cell => translateVi(cell.store || cell.text))
+    .filter(Boolean);
+  return locations.length ? locations.join(", ") : "Chua thay cua hang Apple con hang";
+}
+
+function renderOffer(row, offer) {
+  return `
+    <div class="mobile-offer ${priceChangeClass(row, offer.cell)}">
+      <div>
+        <div class="mobile-shop">${escapeHtml(translateVi(offer.cell.shop))}</div>
+        ${offer.profit == null ? "" : `<div class="quote-profit ${profitClass(offer.profit)}">${profitLabel(offer.profit)}</div>`}
+      </div>
+      <div class="mobile-price">${yen(offer.price)}</div>
+    </div>
+  `;
+}
+
+function renderMobileCards(rows, shops) {
+  const mount = document.getElementById("mobileCards");
+  if (!mount) return;
+  if (!rows.length) {
+    mount.innerHTML = `<div class="mobile-empty">Khong co san pham phu hop.</div>`;
+    return;
+  }
+
+  mount.innerHTML = rows.map(row => {
+    const offers = shopOffers(row, shops);
+    const topOffers = offers.slice(0, 5);
+    const moreOffers = offers.slice(5);
+    const best = offers[0];
+    const retail = Number(row.teikaOld) || parseNumber(row.cells[3]?.text);
+    return `
+      <article class="mobile-card">
+        <div class="mobile-card-head">
+          <div class="mobile-title">
+            <div class="mobile-name">${escapeHtml(translateVi(row.kind))} ${escapeHtml(row.capacity)}</div>
+            <div class="mobile-sub">${escapeHtml(translateVi(row.color))}</div>
+          </div>
+          <div>
+            <div class="mobile-profit ${profitClass(best?.profit)}">${best?.profit == null ? "N/A" : profitLabel(best.profit)}</div>
+            <div class="mobile-retail">Gia niem yet ${yen(retail)}</div>
+          </div>
+        </div>
+        <div class="mobile-offers">
+          ${topOffers.map(offer => renderOffer(row, offer)).join("") || `<div class="mobile-empty">Chua co gia shop.</div>`}
+        </div>
+        <div class="mobile-stock">Apple con hang: ${escapeHtml(stockLocations(row))}</div>
+        ${moreOffers.length ? `
+          <details class="mobile-more">
+            <summary>Xem them ${moreOffers.length} shop</summary>
+            <div class="mobile-offers">${moreOffers.map(offer => renderOffer(row, offer)).join("")}</div>
+          </details>
+        ` : ""}
+      </article>
+    `;
+  }).join("");
 }
 
 function renderRowProfitCell(row) {
@@ -401,12 +593,7 @@ function cellClass(cell, index) {
 function renderTable() {
   const data = state.data;
   if (!data) return;
-  const kinds = checkedSet("kindFilters");
-  const capacities = checkedSet("capacityFilters");
-  const colors = checkedSet("colorFilters");
   const shops = checkedSet("shopFilters");
-  const stores = new Set(data.columns.filter(column => column.store).map(column => column.store));
-  const stockOnly = document.getElementById("stockOnly").checked;
   updateFilterSummary();
 
   const head = document.getElementById("headRow");
@@ -419,13 +606,11 @@ function renderTable() {
   const body = document.getElementById("bodyRows");
   body.innerHTML = "";
   const updateRows = data.rows.filter(row => row.isUpdateRow);
-  const productRows = sortProductRows(data.rows.filter(row => !row.isUpdateRow));
+  const productRows = filteredProductRows(data);
   const rows = [...updateRows, ...productRows];
+  renderMobileCards(productRows, shops);
 
   rows.forEach(row => {
-    const visibleByBasics = row.isUpdateRow || (kinds.has(row.kind) && capacities.has(row.capacity) && colors.has(row.color));
-    const hasStock = row.cells.some(cell => cell.store && stores.has(cell.store) && cell.text && cell.text !== "\u00d7");
-    if (!visibleByBasics || (stockOnly && !row.isUpdateRow && !hasStock)) return;
     let html = "<tr>";
     row.cells.forEach((cell, index) => {
       const hidden = (cell.shop && !shops.has(cell.shop)) || Boolean(cell.store);
@@ -488,10 +673,12 @@ document.getElementById("sortBtn").addEventListener("click", () => {
 document.getElementById("nameSortBtn").addEventListener("click", () => {
   setSortMode("name");
 });
+document.getElementById("quickSearch").addEventListener("input", renderTable);
 document.getElementById("resetBtn").addEventListener("click", () => {
   document.querySelectorAll(".filters input[type='checkbox']").forEach(input => {
     input.checked = input.id !== "stockOnly";
   });
+  document.getElementById("quickSearch").value = "";
   renderTable();
 });
 
