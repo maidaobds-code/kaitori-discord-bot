@@ -48,6 +48,18 @@
     .stat-label { color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; }
     .stat-value { margin-top: 2px; font-size: 18px; font-weight: 850; }
     .filters { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 8px; margin-bottom: 10px; }
+    .filters.collapsed { display: none; }
+    .filter-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 2px 2px 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
     .filter-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     label {
       display: inline-flex;
@@ -131,6 +143,8 @@
       <div id="updated" class="meta">Dang tai du lieu...</div>
     </div>
     <div class="actions">
+      <button id="filterBtn">Mo bo loc</button>
+      <button id="storeBtn">Khu vuc</button>
       <button id="sortBtn">Sap xep lai cao nhat</button>
       <button id="resetBtn">Reset loc</button>
       <button id="reloadBtn" class="primary">Tai lai</button>
@@ -140,13 +154,23 @@
     <div class="stat"><div class="stat-label">Cot ton kho</div><div id="storeCount" class="stat-value">0</div></div>
     <div class="stat"><div class="stat-label">Lai cao nhat</div><div id="bestProfit" class="stat-value">N/A</div></div>
   </section>
-  <section class="filters" aria-label="Bo loc">
+  <section id="filterPanel" class="filters collapsed" aria-label="Bo loc">
+    <div class="filter-title">
+      <span>Bo loc hien thi</span>
+      <span id="filterSummary">Tat ca dang hien</span>
+    </div>
     <div class="filter-row" id="kindFilters">
       <label><input id="stockOnly" type="checkbox"> Chi hien may con hang</label>
     </div>
     <div class="filter-row" id="capacityFilters"></div>
     <div class="filter-row" id="colorFilters"></div>
     <div class="filter-row" id="shopFilters"></div>
+  </section>
+  <section id="storePanel" class="filters collapsed" aria-label="Khu vuc ton kho">
+    <div class="filter-title">
+      <span>Khu vuc ton kho</span>
+      <span id="storeSummary">Tat ca dang hien</span>
+    </div>
     <div class="filter-row" id="storeFilters"></div>
   </section>
   <section class="table-wrap" aria-label="Bang bao gia">
@@ -232,6 +256,22 @@ function checkedSet(rootId) {
   return new Set([...document.querySelectorAll(`#${rootId} input[type="checkbox"]:checked`)].map(input => input.value));
 }
 
+function updateFilterSummary() {
+  const summary = document.getElementById("filterSummary");
+  if (!summary) return;
+  const total = document.querySelectorAll("#filterPanel input[type='checkbox']").length;
+  const checked = document.querySelectorAll("#filterPanel input[type='checkbox']:checked").length;
+  summary.textContent = `${checked}/${total} dang bat`;
+}
+
+function updateStoreSummary() {
+  const summary = document.getElementById("storeSummary");
+  if (!summary) return;
+  const total = document.querySelectorAll("#storePanel input[type='checkbox']").length;
+  const checked = document.querySelectorAll("#storePanel input[type='checkbox']:checked").length;
+  summary.textContent = `${checked}/${total} khu vuc`;
+}
+
 function columnClass(column, index) {
   const classes = [];
   if (index < 5) classes.push("basic");
@@ -279,6 +319,8 @@ function renderTable() {
   const shops = checkedSet("shopFilters");
   const stores = checkedSet("storeFilters");
   const stockOnly = document.getElementById("stockOnly").checked;
+  updateFilterSummary();
+  updateStoreSummary();
 
   const head = document.getElementById("headRow");
   head.innerHTML = "";
@@ -328,6 +370,8 @@ function setupFilters(data) {
   makeCheckboxes("shopFilters", data.columns.filter(column => column.shop).map(column => column.shop));
   makeCheckboxes("storeFilters", data.columns.filter(column => column.store).map(column => column.store));
   document.querySelectorAll(".filters input").forEach(input => input.addEventListener("change", renderTable));
+  updateFilterSummary();
+  updateStoreSummary();
 }
 
 async function load() {
@@ -352,6 +396,20 @@ async function load() {
 }
 
 document.getElementById("reloadBtn").addEventListener("click", load);
+document.getElementById("filterBtn").addEventListener("click", () => {
+  const panel = document.getElementById("filterPanel");
+  const button = document.getElementById("filterBtn");
+  const collapsed = panel.classList.toggle("collapsed");
+  button.classList.toggle("active", !collapsed);
+  button.textContent = collapsed ? "Mo bo loc" : "Bo loc";
+});
+document.getElementById("storeBtn").addEventListener("click", () => {
+  const panel = document.getElementById("storePanel");
+  const button = document.getElementById("storeBtn");
+  const collapsed = panel.classList.toggle("collapsed");
+  button.classList.toggle("active", !collapsed);
+  button.textContent = collapsed ? "Khu vuc" : "An khu vuc";
+});
 document.getElementById("sortBtn").addEventListener("click", () => {
   state.sortByProfit = !state.sortByProfit;
   const sortBtn = document.getElementById("sortBtn");
