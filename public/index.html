@@ -300,6 +300,14 @@ function displayCellText(cell, index) {
   return cell.text;
 }
 
+function removeLegacyResetButton() {
+  document.querySelectorAll("button").forEach(button => {
+    if (button.id === "resetBtn" || button.textContent.trim().toLowerCase() === "reset loc") {
+      button.remove();
+    }
+  });
+}
+
 function plainCellHtml(cell, index) {
   return escapeHtml(displayCellText(cell, index));
 }
@@ -653,6 +661,7 @@ document.getElementById("nameSortBtn").addEventListener("click", () => {
 });
 document.getElementById("quickSearch").addEventListener("input", renderTable);
 
+removeLegacyResetButton();
 load();
 setInterval(load, 60000);
 </script>
