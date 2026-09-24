@@ -22,6 +22,10 @@ const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
 const IS_CHECKER_URL = process.env.IS_CHECKER_URL || "https://is-checker.com/iphone18_beta.html";
 const IS_CHECKER_CACHE_MS = Number(process.env.IS_CHECKER_CACHE_MS || 30000);
+const UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const IS_CHECKER_STATE_KEY = `${process.env.STATE_KEY || "kaitori:prices"}:is-checker`;
+const CRON_SECRET = process.env.CRON_SECRET;
 const PRICE_CHANGE_TTL_MS = 3 * 60 * 60 * 1000;
 let runningCheck = null;
 let isCheckerCache = null;
@@ -46,6 +50,39 @@ function loadJSON(file, fallback) {
 function saveJSON(file, data) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
+}
+
+async function loadIsCheckerState() {
+  if (UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN) {
+    try {
+      const response = await axios.get(`${UPSTASH_REDIS_REST_URL}/get/${encodeURIComponent(IS_CHECKER_STATE_KEY)}`, {
+        headers: { Authorization: `Bearer ${UPSTASH_REDIS_REST_TOKEN}` },
+        timeout: 5000
+      });
+      if (response.data?.result) return JSON.parse(response.data.result);
+    } catch (error) {
+      console.warn(`Could not load is-checker state from Redis: ${error?.message || error}`);
+    }
+  }
+  return loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {} });
+}
+
+async function saveIsCheckerState(state) {
+  if (UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN) {
+    try {
+      await axios.post(`${UPSTASH_REDIS_REST_URL}/set/${encodeURIComponent(IS_CHECKER_STATE_KEY)}`, JSON.stringify(state), {
+        headers: {
+          Authorization: `Bearer ${UPSTASH_REDIS_REST_TOKEN}`,
+          "Content-Type": "text/plain"
+        },
+        timeout: 5000
+      });
+      return;
+    } catch (error) {
+      console.warn(`Could not save is-checker state to Redis: ${error?.message || error}`);
+    }
+  }
+  saveJSON(IS_CHECKER_STATE_FILE, state);
 }
 
 function parseYen(value = "") {
@@ -533,9 +570,9 @@ function isCheckerPriceKey(row, cell) {
   return [row.kind, row.capacity, row.color, cell.shop].map(value => String(value || "").trim()).join("|");
 }
 
-function withSharedPriceChanges(rows) {
+async function withSharedPriceChanges(rows) {
   const now = Date.now();
-  const previousState = loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {} });
+  const previousState = await loadIsCheckerState();
   const nextSnapshot = {};
   const nextChanges = { ...(previousState.changes || {}) };
 
@@ -559,7 +596,7 @@ function withSharedPriceChanges(rows) {
   });
 
   try {
-    saveJSON(IS_CHECKER_STATE_FILE, {
+    await saveIsCheckerState({
       updatedAt: new Date(now).toISOString(),
       snapshot: nextSnapshot,
       changes: nextChanges
@@ -645,7 +682,7 @@ async function scrapeIsChecker() {
   }).get();
 
   const dataRows = rows.filter(row => !row.isUpdateRow);
-  const priceChanges = withSharedPriceChanges(rows);
+  const priceChanges = await withSharedPriceChanges(rows);
   const bestProfit = dataRows.reduce((best, row) => {
     const rawProfit = row.cells[4]?.text || "";
     const profitMatch = rawProfit.replace(/,/g, "").match(/[+-]\d+/);
@@ -733,6 +770,21 @@ app.post("/api/check", async (req, res) => {
     res.json(await runPriceCheck({ manual: true }));
   } catch (e) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+app.get("/api/cron/check-prices", async (req, res) => {
+  if (CRON_SECRET) {
+    const token = req.query.token || req.headers.authorization?.replace(/^Bearer\s+/i, "");
+    if (token !== CRON_SECRET) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  }
+
+  try {
+    const checker = await scrapeIsChecker();
+    const prices = IS_SERVERLESS_READONLY ? null : await runPriceCheck();
+    res.json({ ok: true, checkerUpdatedAt: checker.updatedAt, priceUpdatedAt: prices?.rows[0]?.checkedAt || null });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error?.message || String(error) });
   }
 });
 
