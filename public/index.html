@@ -284,8 +284,8 @@ function cellClass(cell, index) {
   if (cell.shop) classes.push("price");
   if (cell.store) {
     classes.push("stock");
-    if (cell.text && cell.text !== "×") classes.push("stock-ok");
-    if (cell.text === "×") classes.push("stock-ng");
+    if (cell.text && cell.text !== "\u00d7") classes.push("stock-ok");
+    if (cell.text === "\u00d7") classes.push("stock-ng");
   }
   if (cell.isBest) classes.push("best");
   if (index === 0) {
@@ -329,7 +329,7 @@ function renderTable() {
 
   rows.forEach(row => {
     const visibleByBasics = row.isUpdateRow || (kinds.has(row.kind) && capacities.has(row.capacity) && colors.has(row.color));
-    const hasStock = row.cells.some(cell => cell.store && stores.has(cell.store) && cell.text && cell.text !== "×");
+    const hasStock = row.cells.some(cell => cell.store && stores.has(cell.store) && cell.text && cell.text !== "\u00d7");
     if (!visibleByBasics || (stockOnly && !row.isUpdateRow && !hasStock)) return;
     let html = "<tr>";
     row.cells.forEach((cell, index) => {
@@ -385,13 +385,6 @@ document.getElementById("filterBtn").addEventListener("click", () => {
   const collapsed = panel.classList.toggle("collapsed");
   button.classList.toggle("active", !collapsed);
   button.textContent = collapsed ? "Mo bo loc" : "Bo loc";
-});
-document.getElementById("storeBtn").addEventListener("click", () => {
-  const panel = document.getElementById("storePanel");
-  const button = document.getElementById("storeBtn");
-  const collapsed = panel.classList.toggle("collapsed");
-  button.classList.toggle("active", !collapsed);
-  button.textContent = collapsed ? "Khu vuc" : "An khu vuc";
 });
 document.getElementById("sortBtn").addEventListener("click", () => {
   state.sortByProfit = !state.sortByProfit;

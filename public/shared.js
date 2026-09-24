@@ -23,7 +23,7 @@ function parseNumber(value) {
 function stockClass(text) {
   const value = String(text || "").trim();
   if (!value || value === "-") return "unknown";
-  if (value === "×") return "no-stock";
+  if (value === "\u00d7") return "no-stock";
   return "has-stock";
 }
 

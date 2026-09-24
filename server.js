@@ -544,7 +544,11 @@ async function scrapeIsChecker() {
   const $ = cheerio.load(html);
   const table = $("table.dataframe").first().length
     ? $("table.dataframe").first()
-    : $("table").filter((_, el) => $(el).find("tr").first().text().includes("種別")).first();
+    : $("table").filter((_, el) => {
+        const firstRowText = $(el).find("tr").first().text();
+        return firstRowText.includes("\u7a2e\u5225")
+          || (firstRowText.includes("\u5bb9\u91cf") && firstRowText.includes("\u5b9a\u4fa1"));
+      }).first();
   if (!table.length) {
     throw new Error("Could not find is-checker price table");
   }
