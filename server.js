@@ -15,20 +15,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const DATA_FILE = path.join(__dirname, "data", "prices.json");
-const IS_SERVERLESS_READONLY = __dirname.startsWith("/var/task") || Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-const WRITABLE_STATE_DIR = process.env.WRITABLE_STATE_DIR || (IS_SERVERLESS_READONLY ? "/tmp" : path.join(__dirname, "data"));
-const IS_CHECKER_STATE_FILE = process.env.IS_CHECKER_STATE_FILE || path.join(WRITABLE_STATE_DIR, "is-checker-price-state.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
-const IS_CHECKER_URL = process.env.IS_CHECKER_URL || "https://is-checker.com/iphone18_beta.html";
-const IS_CHECKER_CACHE_MS = Number(process.env.IS_CHECKER_CACHE_MS || 30000);
-const UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-const IS_CHECKER_STATE_KEY = `${process.env.STATE_KEY || "kaitori:prices"}:is-checker`;
-const CRON_SECRET = process.env.CRON_SECRET;
-const PRICE_CHANGE_TTL_MS = 3 * 60 * 60 * 1000;
 let runningCheck = null;
-let isCheckerCache = null;
 
 app.use(express.json());
 app.use("/api", (req, res, next) => {
@@ -50,39 +39,6 @@ function loadJSON(file, fallback) {
 function saveJSON(file, data) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf8");
-}
-
-async function loadIsCheckerState() {
-  if (UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN) {
-    try {
-      const response = await axios.get(`${UPSTASH_REDIS_REST_URL}/get/${encodeURIComponent(IS_CHECKER_STATE_KEY)}`, {
-        headers: { Authorization: `Bearer ${UPSTASH_REDIS_REST_TOKEN}` },
-        timeout: 5000
-      });
-      if (response.data?.result) return JSON.parse(response.data.result);
-    } catch (error) {
-      console.warn(`Could not load is-checker state from Redis: ${error?.message || error}`);
-    }
-  }
-  return loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {} });
-}
-
-async function saveIsCheckerState(state) {
-  if (UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN) {
-    try {
-      await axios.post(`${UPSTASH_REDIS_REST_URL}/set/${encodeURIComponent(IS_CHECKER_STATE_KEY)}`, JSON.stringify(state), {
-        headers: {
-          Authorization: `Bearer ${UPSTASH_REDIS_REST_TOKEN}`,
-          "Content-Type": "text/plain"
-        },
-        timeout: 5000
-      });
-      return;
-    } catch (error) {
-      console.warn(`Could not save is-checker state to Redis: ${error?.message || error}`);
-    }
-  }
-  saveJSON(IS_CHECKER_STATE_FILE, state);
 }
 
 function parseYen(value = "") {
@@ -535,186 +491,6 @@ async function scrapeLivePrices() {
   };
 }
 
-function cleanCellText(value = "") {
-  return String(value).replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").trim();
-}
-
-function sanitizeTableHtml(html = "") {
-  const $ = cheerio.load(`<root>${html}</root>`, null, false);
-  $("script,style,iframe,object,embed").remove();
-  $("*").each((_, el) => {
-    const node = $(el);
-    for (const attr of Object.keys(el.attribs || {})) {
-      if (attr.toLowerCase().startsWith("on") || attr.toLowerCase() === "style") {
-        node.removeAttr(attr);
-      }
-    }
-    if (node.is("a")) {
-      const href = node.attr("href") || "";
-      if (!/^https?:\/\//i.test(href)) node.removeAttr("href");
-      node.attr("target", "_blank");
-      node.attr("rel", "noopener noreferrer");
-    }
-  });
-  return $("root").html() || "";
-}
-
-function parsePriceNumber(value = "") {
-  const match = String(value).replace(/,/g, "").match(/\d{4,9}/);
-  if (!match) return null;
-  const price = Number(match[0]);
-  return Number.isFinite(price) ? price : null;
-}
-
-function isCheckerPriceKey(row, cell) {
-  return [row.kind, row.capacity, row.color, cell.shop].map(value => String(value || "").trim()).join("|");
-}
-
-async function withSharedPriceChanges(rows) {
-  const now = Date.now();
-  const previousState = await loadIsCheckerState();
-  const nextSnapshot = {};
-  const nextChanges = { ...(previousState.changes || {}) };
-
-  rows.filter(row => !row.isUpdateRow).forEach(row => {
-    row.cells.filter(cell => cell.shop).forEach(cell => {
-      const price = parsePriceNumber(cell.text);
-      if (price == null) return;
-      const key = isCheckerPriceKey(row, cell);
-      const previous = previousState.snapshot?.[key];
-      nextSnapshot[key] = price;
-      if (previous != null && Number(previous) !== price) {
-        nextChanges[key] = now;
-      }
-    });
-  });
-
-  Object.keys(nextChanges).forEach(key => {
-    if (nextSnapshot[key] == null || now - Number(nextChanges[key]) > PRICE_CHANGE_TTL_MS) {
-      delete nextChanges[key];
-    }
-  });
-
-  try {
-    await saveIsCheckerState({
-      updatedAt: new Date(now).toISOString(),
-      snapshot: nextSnapshot,
-      changes: nextChanges
-    });
-  } catch (error) {
-    console.warn(`Could not save is-checker price state: ${error?.message || error}`);
-  }
-
-  return nextChanges;
-}
-
-function columnKind($, el, label) {
-  const node = $(el);
-  const className = node.attr("class") || "";
-  const shop = node.attr("data-shop") || null;
-  if (shop || className.includes("shop-head") || className.includes("shop-cell")) {
-    return { shop, store: null };
-  }
-  const store = node.attr("data-store") || node.attr("data-stock-key") || null;
-  if (store || className.includes("stock-head") || className.includes("stock-cell")) {
-    return { shop: null, store: store || label };
-  }
-  return { shop: null, store: null };
-}
-
-async function scrapeIsChecker() {
-  const html = await fetchHtml(IS_CHECKER_URL);
-  const $ = cheerio.load(html);
-  const table = $("table.dataframe").first().length
-    ? $("table.dataframe").first()
-    : $("table").filter((_, el) => {
-        const firstRowText = $(el).find("tr").first().text();
-        return firstRowText.includes("\u7a2e\u5225")
-          || (firstRowText.includes("\u5bb9\u91cf") && firstRowText.includes("\u5b9a\u4fa1"));
-      }).first();
-  if (!table.length) {
-    throw new Error("Could not find is-checker price table");
-  }
-
-  const columns = table.find("thead tr").first().find("th,td").map((index, cell) => {
-    const el = $(cell);
-    const label = cleanCellText(el.clone().find(".shop-xlinks").remove().end().text());
-    const kind = columnKind($, cell, label);
-    return {
-      index,
-      label,
-      html: sanitizeTableHtml(el.html() || ""),
-      shop: kind.shop,
-      store: kind.store,
-      teika: el.attr("data-teika") || null,
-      className: el.attr("class") || ""
-    };
-  }).get();
-
-  const rows = table.find("tbody tr").map((rowIndex, row) => {
-    const tr = $(row);
-    const cells = tr.find("td,th").map((cellIndex, cell) => {
-      const el = $(cell);
-      const label = cleanCellText(el.text());
-      const kind = columnKind($, cell, columns[cellIndex]?.label || label);
-      return {
-        index: cellIndex,
-        text: label,
-        html: sanitizeTableHtml(el.html() || ""),
-        shop: kind.shop,
-        store: kind.store,
-        teika: el.attr("data-teika") || null,
-        className: el.attr("class") || "",
-        isBest: el.hasClass("is-best") || el.hasClass("highest")
-      };
-    }).get();
-
-    return {
-      index: rowIndex,
-      kind: tr.attr("data-model") || cleanCellText(cells[0]?.text),
-      capacity: tr.attr("data-cap") || tr.attr("data-capacity") || cleanCellText(cells[1]?.text),
-      color: tr.attr("data-color-name") || tr.attr("data-color") || cleanCellText(cells[2]?.text),
-      teikaOld: Number(tr.attr("data-teika-old")) || parsePriceNumber(cells[3]?.text),
-      teikaNew: Number(tr.attr("data-teika-new")) || null,
-      isUpdateRow: tr.hasClass("update-row") || cells.some(cell => cell.className.includes("upd-row")),
-      cells
-    };
-  }).get();
-
-  const dataRows = rows.filter(row => !row.isUpdateRow);
-  const priceChanges = await withSharedPriceChanges(rows);
-  const bestProfit = dataRows.reduce((best, row) => {
-    const rawProfit = row.cells[4]?.text || "";
-    const profitMatch = rawProfit.replace(/,/g, "").match(/[+-]\d+/);
-    if (profitMatch) return Math.max(best, Number(profitMatch[0]));
-
-    const retail = parsePriceNumber(row.cells[3]?.text);
-    const maxShopPrice = Math.max(
-      ...row.cells
-        .filter(cell => cell.shop)
-        .map(cell => parsePriceNumber(cell.text))
-        .filter(price => price != null)
-    );
-    if (!retail || !Number.isFinite(maxShopPrice)) return best;
-    return Math.max(best, maxShopPrice - retail);
-  }, -Infinity);
-
-  return {
-    ok: true,
-    sourceUrl: IS_CHECKER_URL,
-    updatedAt: new Date().toISOString(),
-    columns,
-    rows,
-    priceChanges,
-    summary: {
-      rowCount: dataRows.length,
-      shopCount: columns.filter(column => column.shop).length,
-      storeCount: columns.filter(column => column.store).length,
-      bestProfit: Number.isFinite(bestProfit) ? bestProfit : null
-    }
-  };
-}
-
 app.get("/api/prices", (req, res) => {
   res.json(loadJSON(DATA_FILE, { rows: [], updatedAt: null, errors: [] }));
 });
@@ -727,26 +503,6 @@ app.get("/api/live-prices", async (req, res) => {
       ok: false,
       rows: [],
       updatedAt: null,
-      errors: [{ error: error?.message || String(error) }]
-    });
-  }
-});
-
-app.get("/api/is-checker", async (req, res) => {
-  try {
-    const now = Date.now();
-    if (!isCheckerCache || now - isCheckerCache.savedAt > IS_CHECKER_CACHE_MS || req.query.refresh === "1") {
-      isCheckerCache = { savedAt: now, data: await scrapeIsChecker() };
-    }
-    res.json(isCheckerCache.data);
-  } catch (error) {
-    res.status(500).json({
-      ok: false,
-      sourceUrl: IS_CHECKER_URL,
-      updatedAt: null,
-      columns: [],
-      rows: [],
-      summary: { rowCount: 0, shopCount: 0, storeCount: 0, bestProfit: null },
       errors: [{ error: error?.message || String(error) }]
     });
   }
@@ -773,29 +529,12 @@ app.post("/api/check", async (req, res) => {
   }
 });
 
-app.get("/api/cron/check-prices", async (req, res) => {
-  if (CRON_SECRET) {
-    const token = req.query.token || req.headers.authorization?.replace(/^Bearer\s+/i, "");
-    if (token !== CRON_SECRET) return res.status(401).json({ ok: false, error: "Unauthorized" });
-  }
-
-  try {
-    const checker = await scrapeIsChecker();
-    const prices = IS_SERVERLESS_READONLY ? null : await runPriceCheck();
-    res.json({ ok: true, checkerUpdatedAt: checker.updatedAt, priceUpdatedAt: prices?.rows[0]?.checkedAt || null });
-  } catch (error) {
-    res.status(500).json({ ok: false, error: error?.message || String(error) });
-  }
-});
-
 if (!process.env.VERCEL) {
-  if (process.env.DISABLE_PRICE_CHECK !== "1") {
-    cron.schedule(CHECK_CRON, () => {
-      runPriceCheck().catch(err => console.error("Cron check error:", err));
-    });
+  cron.schedule(CHECK_CRON, () => {
+    runPriceCheck().catch(err => console.error("Cron check error:", err));
+  });
 
-    runPriceCheck().catch(err => console.error("Initial check error:", err));
-  }
+  runPriceCheck().catch(err => console.error("Initial check error:", err));
 
   app.listen(PORT, () => {
     console.log(`Kaitori bot running: http://localhost:${PORT}`);

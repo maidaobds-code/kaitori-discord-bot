@@ -6,7 +6,7 @@
   "crons": [
     {
       "path": "/api/cron/check-prices",
-      "schedule": "* * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
