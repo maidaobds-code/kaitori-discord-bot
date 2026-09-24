@@ -15,7 +15,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const DATA_FILE = path.join(__dirname, "data", "prices.json");
-const IS_CHECKER_STATE_FILE = path.join(__dirname, "data", "is-checker-price-state.json");
+const IS_SERVERLESS_READONLY = __dirname.startsWith("/var/task") || Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const WRITABLE_STATE_DIR = process.env.WRITABLE_STATE_DIR || (IS_SERVERLESS_READONLY ? "/tmp" : path.join(__dirname, "data"));
+const IS_CHECKER_STATE_FILE = process.env.IS_CHECKER_STATE_FILE || path.join(WRITABLE_STATE_DIR, "is-checker-price-state.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
 const IS_CHECKER_URL = process.env.IS_CHECKER_URL || "https://is-checker.com/iphone18_beta.html";
@@ -556,11 +558,15 @@ function withSharedPriceChanges(rows) {
     }
   });
 
-  saveJSON(IS_CHECKER_STATE_FILE, {
-    updatedAt: new Date(now).toISOString(),
-    snapshot: nextSnapshot,
-    changes: nextChanges
-  });
+  try {
+    saveJSON(IS_CHECKER_STATE_FILE, {
+      updatedAt: new Date(now).toISOString(),
+      snapshot: nextSnapshot,
+      changes: nextChanges
+    });
+  } catch (error) {
+    console.warn(`Could not save is-checker price state: ${error?.message || error}`);
+  }
 
   return nextChanges;
 }
