@@ -376,7 +376,7 @@ function rowMatchesSearch(row) {
     row.capacity,
     row.color,
     translateVi(row.color),
-    ...row.cells.filter(cell => cell.shop).map(cell => translateVi(cell.shop))
+    ...row.cells.filter(cell => cell.shop).map(cell => cell.shop)
   ].join(" ").toLowerCase();
   return query.split(/\s+/).every(part => haystack.includes(part));
 }
@@ -432,16 +432,21 @@ function shopOffers(row, shops) {
 function stockLocations(row) {
   const locations = row.cells
     .filter(cell => cell.store && cell.text && cell.text !== "\u00d7")
-    .map(cell => translateVi(cell.store || cell.text))
+    .map(cell => {
+      const column = state.data?.columns?.find(item => item.store === cell.store);
+      return column?.label || cell.store || cell.text;
+    })
     .filter(Boolean);
   return locations.length ? locations.join(", ") : "Chua thay cua hang Apple con hang";
 }
 
 function renderOffer(row, offer) {
+  const column = state.data?.columns?.find(item => item.shop === offer.cell.shop);
+  const shopName = column?.label || offer.cell.shop;
   return `
     <div class="mobile-offer ${priceChangeClass(row, offer.cell)}">
       <div>
-        <div class="mobile-shop">${escapeHtml(translateVi(offer.cell.shop))}</div>
+        <div class="mobile-shop">${escapeHtml(shopName)}</div>
         ${offer.profit == null ? "" : `<div class="quote-profit ${profitClass(offer.profit)}">${profitLabel(offer.profit)}</div>`}
       </div>
       <div class="mobile-price">${yen(offer.price)}</div>
@@ -603,7 +608,10 @@ function setupFilters(data) {
   });
   makeCheckboxes("capacityFilters", [...new Set(products.map(row => row.capacity).filter(Boolean))]);
   makeCheckboxes("colorFilters", [...new Set(products.map(row => row.color).filter(Boolean))], true, translateVi);
-  makeCheckboxes("shopFilters", data.columns.filter(column => column.shop).map(column => column.shop), true, translateVi);
+  makeCheckboxes("shopFilters", data.columns.filter(column => column.shop).map(column => column.shop), true, value => {
+    const column = data.columns.find(item => item.shop === value);
+    return column?.label || value;
+  });
   document.querySelectorAll(".filters input").forEach(input => input.addEventListener("change", renderTable));
   updateFilterSummary();
 }

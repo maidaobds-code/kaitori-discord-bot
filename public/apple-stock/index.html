@@ -157,7 +157,7 @@ function render() {
       <thead>
         <tr>
           <th>San pham</th>
-          ${stores.map(store => `<th>${escapeHtml(displayColumnLabel(store))}</th>`).join("")}
+          ${stores.map(store => `<th>${escapeHtml(store.label || store.store)}</th>`).join("")}
         </tr>
       </thead>
       <tbody>

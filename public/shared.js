@@ -60,8 +60,7 @@ function translateVi(value) {
 }
 
 function displayColumnLabel(column) {
-  if (column.shop) return translateVi(column.label || column.shop);
-  if (column.store) return translateVi(column.label || column.store);
+  if (column.shop || column.store) return column.label || column.shop || column.store;
   return translateVi(column.label);
 }
 
