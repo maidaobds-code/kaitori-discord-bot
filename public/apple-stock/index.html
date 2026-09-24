@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ton kho Apple</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --line: #dfe5ee;
+      --text: #111827;
+      --muted: #64748b;
+      --accent: #0f6fc6;
+      --stock: #087f5b;
+      --stock-bg: #e7f7ef;
+      --none: #c92a2a;
+      --none-bg: #fff0f0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    .app { max-width: 1440px; margin: 0 auto; padding: 16px; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      padding: 12px 0;
+      background: rgba(246, 247, 251, .94);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--line);
+    }
+    h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: 0; }
+    .meta { margin-top: 3px; color: var(--muted); font-size: 13px; }
+    .actions { display: flex; gap: 8px; align-items: center; }
+    a.button, button {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      border: 1px solid #c8d2df;
+      border-radius: 8px;
+      padding: 0 12px;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 750;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .panel {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0 10px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 750;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    label:has(input:checked) { border-color: var(--accent); background: #eaf5ff; color: #0f4f8f; }
+    label input { position: absolute; opacity: 0; pointer-events: none; }
+    .stock-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+    th, td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 8px; vertical-align: middle; }
+    th { position: sticky; top: 61px; z-index: 2; background: #eef6ff; color: #17324d; text-align: center; font-weight: 850; }
+    th:first-child, td:first-child { position: sticky; left: 0; z-index: 3; background: var(--surface); min-width: 220px; }
+    th:first-child { z-index: 4; background: #eef6ff; text-align: left; }
+    .product { display: grid; gap: 2px; }
+    .product-name { font-weight: 850; }
+    .product-sub { color: var(--muted); font-size: 11px; }
+    .stock-cell { text-align: center; font-weight: 850; min-width: 76px; }
+    .has-stock { background: var(--stock-bg); color: var(--stock); }
+    .no-stock { background: var(--none-bg); color: var(--none); }
+    .unknown { background: #f8fafc; color: #64748b; }
+    .empty, .error { padding: 14px; color: var(--muted); font-weight: 650; }
+    .error { color: #9f1239; background: #fff1f2; }
+    @media (max-width: 720px) {
+      .app { padding: 10px; }
+      .topbar { align-items: flex-start; }
+      th:first-child, td:first-child { min-width: 170px; }
+      .stock-cell { min-width: 58px; padding: 7px 4px; }
+    }
+  </style>
+</head>
+<body>
+<main class="app">
+  <div class="topbar">
+    <div>
+      <h1>Ton kho Apple</h1>
+      <div id="updated" class="meta">Dang tai du lieu...</div>
+    </div>
+    <div class="actions">
+      <a class="button" href="/">Bang bao gia</a>
+      <button id="reloadBtn" class="primary">Tai lai</button>
+    </div>
+  </div>
+
+  <section class="panel">
+    <div class="filters" id="kindFilters"></div>
+    <div id="tableMount"></div>
+  </section>
+</main>
+
+<script>
+const state = { data: null };
+const escapeHtml = value => String(value ?? "").replace(/[&<>'"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", "\"":"&quot;" })[c]);
+
+function checkedSet(rootId) {
+  return new Set([...document.querySelectorAll(`#${rootId} input[type="checkbox"]:checked`)].map(input => input.value));
+}
+
+function stockClass(text) {
+  const value = String(text || "").trim();
+  if (!value || value === "-") return "unknown";
+  if (value === "×") return "no-stock";
+  return "has-stock";
+}
+
+function stockText(text) {
+  const value = String(text || "").trim();
+  return value || "-";
+}
+
+function setupFilters(data) {
+  const kinds = [...new Set(data.rows.filter(row => !row.isUpdateRow).map(row => row.kind).filter(Boolean))];
+  const root = document.getElementById("kindFilters");
+  root.innerHTML = "";
+  kinds.forEach(kind => {
+    root.insertAdjacentHTML("beforeend", `<label><input type="checkbox" value="${escapeHtml(kind)}" checked> ${escapeHtml(kind)}</label>`);
+  });
+  root.querySelectorAll("input").forEach(input => input.addEventListener("change", render));
+}
+
+function render() {
+  const data = state.data;
+  if (!data) return;
+  const stores = data.columns.filter(column => column.store);
+  const kinds = checkedSet("kindFilters");
+  const products = data.rows.filter(row => !row.isUpdateRow && kinds.has(row.kind));
+  const mount = document.getElementById("tableMount");
+
+  if (!stores.length || !products.length) {
+    mount.innerHTML = `<div class="empty">Khong co du lieu ton kho.</div>`;
+    return;
+  }
+
+  let html = `
+    <table class="stock-table">
+      <thead>
+        <tr>
+          <th>San pham</th>
+          ${stores.map(store => `<th>${escapeHtml(store.label)}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  products.forEach(row => {
+    html += `
+      <tr>
+        <td>
+          <div class="product">
+            <span class="product-name">${escapeHtml(row.kind)} ${escapeHtml(row.capacity)}</span>
+            <span class="product-sub">${escapeHtml(row.color)}</span>
+          </div>
+        </td>
+    `;
+    stores.forEach(store => {
+      const cell = row.cells.find(item => item.store === store.store);
+      const text = stockText(cell?.text);
+      html += `<td class="stock-cell ${stockClass(text)}">${escapeHtml(text)}</td>`;
+    });
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table>`;
+  mount.innerHTML = html;
+}
+
+async function load() {
+  const reloadBtn = document.getElementById("reloadBtn");
+  reloadBtn.disabled = true;
+  try {
+    const res = await fetch(`/api/is-checker?_=${Date.now()}`, { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.errors?.[0]?.error || `API returned ${res.status}`);
+    state.data = data;
+    document.getElementById("updated").textContent = `Cap nhat luc ${new Date(data.updatedAt).toLocaleString("vi-VN")}`;
+    setupFilters(data);
+    render();
+  } catch (error) {
+    document.getElementById("tableMount").innerHTML = `<div class="error">Khong the lay ton kho: ${escapeHtml(error.message)}</div>`;
+  } finally {
+    reloadBtn.disabled = false;
+  }
+}
+
+document.getElementById("reloadBtn").addEventListener("click", load);
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>

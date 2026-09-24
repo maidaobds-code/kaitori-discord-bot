@@ -40,6 +40,18 @@
       padding: 0 12px; background: var(--surface); color: var(--text);
       font-weight: 750; cursor: pointer;
     }
+    a.button {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      padding: 0 12px;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 750;
+      text-decoration: none;
+    }
     button.primary { border-color: var(--accent); background: var(--accent); color: white; }
     button.active { border-color: #087f5b; background: #e7f7ef; color: #066247; }
     button:disabled { opacity: .65; cursor: wait; }
@@ -143,8 +155,8 @@
       <div id="updated" class="meta">Dang tai du lieu...</div>
     </div>
     <div class="actions">
+      <a class="button" href="/apple-stock/">Ton kho Apple</a>
       <button id="filterBtn">Mo bo loc</button>
-      <button id="storeBtn">Khu vuc</button>
       <button id="sortBtn">Sap xep lai cao nhat</button>
       <button id="resetBtn">Reset loc</button>
       <button id="reloadBtn" class="primary">Tai lai</button>
@@ -165,13 +177,6 @@
     <div class="filter-row" id="capacityFilters"></div>
     <div class="filter-row" id="colorFilters"></div>
     <div class="filter-row" id="shopFilters"></div>
-  </section>
-  <section id="storePanel" class="filters collapsed" aria-label="Khu vuc ton kho">
-    <div class="filter-title">
-      <span>Khu vuc ton kho</span>
-      <span id="storeSummary">Tat ca dang hien</span>
-    </div>
-    <div class="filter-row" id="storeFilters"></div>
   </section>
   <section class="table-wrap" aria-label="Bang bao gia">
     <table>
@@ -317,7 +322,7 @@ function renderTable() {
   const capacities = checkedSet("capacityFilters");
   const colors = checkedSet("colorFilters");
   const shops = checkedSet("shopFilters");
-  const stores = checkedSet("storeFilters");
+  const stores = new Set(data.columns.filter(column => column.store).map(column => column.store));
   const stockOnly = document.getElementById("stockOnly").checked;
   updateFilterSummary();
   updateStoreSummary();
@@ -325,7 +330,7 @@ function renderTable() {
   const head = document.getElementById("headRow");
   head.innerHTML = "";
   data.columns.forEach((column, index) => {
-    const hidden = (column.shop && !shops.has(column.shop)) || (column.store && !stores.has(column.store));
+    const hidden = (column.shop && !shops.has(column.shop)) || Boolean(column.store);
     head.insertAdjacentHTML("beforeend", `<th class="${columnClass(column, index)} ${hidden ? "hidden" : ""}">${column.html || escapeHtml(column.label)}</th>`);
   });
 
@@ -346,7 +351,7 @@ function renderTable() {
     if (!visibleByBasics || (stockOnly && !row.isUpdateRow && !hasStock)) return;
     let html = "<tr>";
     row.cells.forEach((cell, index) => {
-      const hidden = (cell.shop && !shops.has(cell.shop)) || (cell.store && !stores.has(cell.store));
+      const hidden = (cell.shop && !shops.has(cell.shop)) || Boolean(cell.store);
       const content = cell.shop ? renderShopCell(cell, row)
         : (!row.isUpdateRow && index === 4 ? renderRowProfitCell(row) : plainCellHtml(cell));
       html += `<td class="${cellClass(cell, index)} ${hidden ? "hidden" : ""}">${content}</td>`;
@@ -368,7 +373,6 @@ function setupFilters(data) {
   makeCheckboxes("capacityFilters", [...new Set(products.map(row => row.capacity).filter(Boolean))]);
   makeCheckboxes("colorFilters", [...new Set(products.map(row => row.color).filter(Boolean))]);
   makeCheckboxes("shopFilters", data.columns.filter(column => column.shop).map(column => column.shop));
-  makeCheckboxes("storeFilters", data.columns.filter(column => column.store).map(column => column.store));
   document.querySelectorAll(".filters input").forEach(input => input.addEventListener("change", renderTable));
   updateFilterSummary();
   updateStoreSummary();
