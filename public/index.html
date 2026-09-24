@@ -126,6 +126,9 @@
     .quote-profit.zero { background: #f1f5f9; color: #475569; }
     .quote-delta { color: var(--muted); font-size: 10px; font-weight: 650; }
     .quote-empty { color: #94a3b8; font-weight: 750; }
+    td.price.change-new { box-shadow: inset 0 0 0 3px #f97316; background: #fff4e6; }
+    td.price.change-warm { box-shadow: inset 0 0 0 2px #fb923c; background: #fff7ed; }
+    td.price.change-soft { box-shadow: inset 0 0 0 1px #fdba74; background: #fffaf4; }
     td.stock-ok { background: #ecfdf3; color: var(--stock); font-weight: 850; }
     td.stock-ng { color: #b42318; }
     .sticky-1, .sticky-2, .sticky-3 { position: sticky; z-index: 5; box-shadow: 1px 0 0 var(--line); }
@@ -157,7 +160,8 @@
     <div class="actions">
       <a class="button" href="/apple-stock/">Ton kho Apple</a>
       <button id="filterBtn">Mo bo loc</button>
-      <button id="sortBtn">Sap xep lai cao nhat</button>
+      <button id="sortBtn" class="active">Lai cao den thap</button>
+      <button id="nameSortBtn">Ten san pham</button>
       <button id="resetBtn">Reset loc</button>
       <button id="reloadBtn" class="primary">Tai lai</button>
     </div>
@@ -188,10 +192,32 @@
 </main>
 <script src="/shared.js"></script>
 <script>
-const state = { data: null, sortByProfit: false };
+const PRICE_SNAPSHOT_KEY = "is_checker_price_snapshot_v1";
+const PRICE_CHANGES_KEY = "is_checker_price_changes_v1";
+const CHANGE_SOFT_MS = 60 * 60 * 1000;
+const state = {
+  data: null,
+  sortMode: "profit",
+  priceSnapshot: loadStoredMap(PRICE_SNAPSHOT_KEY),
+  priceChanges: loadStoredMap(PRICE_CHANGES_KEY)
+};
 const yen = n => n == null ? "N/A" : Number(n).toLocaleString("ja-JP");
 const money = n => n == null ? "N/A" : (n > 0 ? "+" : n < 0 ? "-" : "") + yen(Math.abs(n));
 const profitLabel = n => n == null ? "" : money(n);
+
+function loadStoredMap(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveStoredMap(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
 
 function plainCellHtml(cell) {
   return (cell.html || escapeHtml(cell.text)).replace(/\sstyle="[^"]*"/g, "");
@@ -236,6 +262,73 @@ function bestRowProfit(row) {
     })
     .filter(value => value != null);
   return profits.length ? Math.max(...profits) : null;
+}
+
+function productName(row) {
+  return [row.kind, row.capacity, row.color].filter(Boolean).join(" ");
+}
+
+function priceKey(row, cell) {
+  return [row.kind, row.capacity, row.color, cell.shop].map(value => String(value || "").trim()).join("|");
+}
+
+function rememberPriceChanges(data) {
+  const now = Date.now();
+  const nextSnapshot = {};
+  const nextChanges = { ...state.priceChanges };
+
+  data.rows.filter(row => !row.isUpdateRow).forEach(row => {
+    row.cells.filter(cell => cell.shop).forEach(cell => {
+      const price = parseNumber(cell.text);
+      if (price == null) return;
+      const key = priceKey(row, cell);
+      const previous = state.priceSnapshot[key];
+      nextSnapshot[key] = price;
+      if (previous != null && Number(previous) !== price) {
+        nextChanges[key] = now;
+      }
+    });
+  });
+
+  Object.keys(nextChanges).forEach(key => {
+    if (!nextSnapshot[key] || now - nextChanges[key] > CHANGE_SOFT_MS) {
+      delete nextChanges[key];
+    }
+  });
+
+  state.priceSnapshot = nextSnapshot;
+  state.priceChanges = nextChanges;
+  saveStoredMap(PRICE_SNAPSHOT_KEY, nextSnapshot);
+  saveStoredMap(PRICE_CHANGES_KEY, nextChanges);
+}
+
+function priceChangeClass(row, cell) {
+  if (!cell.shop) return "";
+  const changedAt = state.priceChanges[priceKey(row, cell)];
+  if (!changedAt) return "";
+  const age = Date.now() - changedAt;
+  if (age < 10 * 60 * 1000) return "change-new";
+  if (age < 30 * 60 * 1000) return "change-warm";
+  if (age < CHANGE_SOFT_MS) return "change-soft";
+  return "";
+}
+
+function sortProductRows(rows) {
+  const productRows = [...rows];
+  if (state.sortMode === "name") {
+    return productRows.sort((a, b) => productName(a).localeCompare(productName(b), "ja"));
+  }
+  return productRows.sort((a, b) => {
+    const profitDiff = (bestRowProfit(b) ?? -Infinity) - (bestRowProfit(a) ?? -Infinity);
+    return profitDiff || productName(a).localeCompare(productName(b), "ja");
+  });
+}
+
+function setSortMode(mode) {
+  state.sortMode = mode;
+  document.getElementById("sortBtn").classList.toggle("active", mode === "profit");
+  document.getElementById("nameSortBtn").classList.toggle("active", mode === "name");
+  renderTable();
 }
 
 function renderRowProfitCell(row) {
@@ -318,14 +411,9 @@ function renderTable() {
 
   const body = document.getElementById("bodyRows");
   body.innerHTML = "";
-  let rows = data.rows;
-  if (state.sortByProfit) {
-    const updateRows = rows.filter(row => row.isUpdateRow);
-    const productRows = rows
-      .filter(row => !row.isUpdateRow)
-      .sort((a, b) => (bestRowProfit(b) ?? -Infinity) - (bestRowProfit(a) ?? -Infinity));
-    rows = [...updateRows, ...productRows];
-  }
+  const updateRows = data.rows.filter(row => row.isUpdateRow);
+  const productRows = sortProductRows(data.rows.filter(row => !row.isUpdateRow));
+  const rows = [...updateRows, ...productRows];
 
   rows.forEach(row => {
     const visibleByBasics = row.isUpdateRow || (kinds.has(row.kind) && capacities.has(row.capacity) && colors.has(row.color));
@@ -336,7 +424,7 @@ function renderTable() {
       const hidden = (cell.shop && !shops.has(cell.shop)) || Boolean(cell.store);
       const content = cell.shop ? renderShopCell(cell, row)
         : (!row.isUpdateRow && index === 4 ? renderRowProfitCell(row) : plainCellHtml(cell));
-      html += `<td class="${cellClass(cell, index)} ${hidden ? "hidden" : ""}">${content}</td>`;
+      html += `<td class="${cellClass(cell, index)} ${priceChangeClass(row, cell)} ${hidden ? "hidden" : ""}">${content}</td>`;
     });
     html += "</tr>";
     body.insertAdjacentHTML("beforeend", html);
@@ -364,6 +452,7 @@ async function load(options = {}) {
   reloadBtn.disabled = true;
   try {
     const data = await fetchIsChecker(options);
+    rememberPriceChanges(data);
     state.data = data;
     setupFilters(data);
     document.getElementById("updated").textContent = `Cap nhat luc ${new Date(data.updatedAt).toLocaleString("vi-VN")} tu is-checker`;
@@ -387,11 +476,10 @@ document.getElementById("filterBtn").addEventListener("click", () => {
   button.textContent = collapsed ? "Mo bo loc" : "Bo loc";
 });
 document.getElementById("sortBtn").addEventListener("click", () => {
-  state.sortByProfit = !state.sortByProfit;
-  const sortBtn = document.getElementById("sortBtn");
-  sortBtn.classList.toggle("active", state.sortByProfit);
-  sortBtn.textContent = state.sortByProfit ? "Dang sap xep lai cao" : "Sap xep lai cao nhat";
-  renderTable();
+  setSortMode("profit");
+});
+document.getElementById("nameSortBtn").addEventListener("click", () => {
+  setSortMode("name");
 });
 document.getElementById("resetBtn").addEventListener("click", () => {
   document.querySelectorAll(".filters input[type='checkbox']").forEach(input => {
