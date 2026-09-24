@@ -15,11 +15,11 @@
       --muted: #64748b;
       --accent: #0f6fc6;
       --best: #fff2c7;
-      --profit: #b42318;
-      --loss: #075985;
+      --profit: #087f5b;
+      --loss: #c92a2a;
       --stock: #067647;
-      --profit-bg: #fff1f0;
-      --loss-bg: #eef6ff;
+      --profit-bg: #e7f7ef;
+      --loss-bg: #fff0f0;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     }
     * { box-sizing: border-box; }
@@ -41,15 +41,33 @@
       font-weight: 750; cursor: pointer;
     }
     button.primary { border-color: var(--accent); background: var(--accent); color: white; }
+    button.active { border-color: #087f5b; background: #e7f7ef; color: #066247; }
     button:disabled { opacity: .65; cursor: wait; }
-    .summary { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px; }
+    .summary { display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px; }
     .stat { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 12px; }
     .stat-label { color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; }
     .stat-value { margin-top: 2px; font-size: 18px; font-weight: 850; }
-    .filters { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px; margin-bottom: 10px; }
-    .filter-row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
-    label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 650; white-space: nowrap; }
-    input { accent-color: var(--accent); }
+    .filters { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 8px; margin-bottom: 10px; }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0 10px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 750;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    label:hover { border-color: #9db7d4; background: #eef6ff; }
+    label:has(input:checked) { border-color: var(--accent); background: #eaf5ff; color: #0f4f8f; }
+    label input { position: absolute; opacity: 0; pointer-events: none; }
     .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); max-height: calc(100vh - 250px); }
     table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: 12px; }
     th, td {
@@ -113,13 +131,12 @@
       <div id="updated" class="meta">Dang tai du lieu...</div>
     </div>
     <div class="actions">
+      <button id="sortBtn">Sap xep lai cao nhat</button>
       <button id="resetBtn">Reset loc</button>
       <button id="reloadBtn" class="primary">Tai lai</button>
     </div>
   </div>
   <section class="summary" aria-label="Tong quan">
-    <div class="stat"><div class="stat-label">San pham</div><div id="rowCount" class="stat-value">0</div></div>
-    <div class="stat"><div class="stat-label">Shop bao gia</div><div id="shopCount" class="stat-value">0</div></div>
     <div class="stat"><div class="stat-label">Cot ton kho</div><div id="storeCount" class="stat-value">0</div></div>
     <div class="stat"><div class="stat-label">Lai cao nhat</div><div id="bestProfit" class="stat-value">N/A</div></div>
   </section>
@@ -141,10 +158,10 @@
   <div id="errors"></div>
 </main>
 <script>
-const state = { data: null };
+const state = { data: null, sortByProfit: false };
 const yen = n => n == null ? "N/A" : Number(n).toLocaleString("ja-JP");
 const money = n => n == null ? "N/A" : (n > 0 ? "+" : n < 0 ? "-" : "") + yen(Math.abs(n));
-const profitLabel = n => n == null ? "" : n > 0 ? `Lai ${money(n)}` : n < 0 ? `Lo ${money(n)}` : "Hoa von";
+const profitLabel = n => n == null ? "" : money(n);
 const escapeHtml = value => String(value ?? "").replace(/[&<>'"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", "\"":"&quot;" })[c]);
 
 function plainCellHtml(cell) {
@@ -272,7 +289,16 @@ function renderTable() {
 
   const body = document.getElementById("bodyRows");
   body.innerHTML = "";
-  data.rows.forEach(row => {
+  let rows = data.rows;
+  if (state.sortByProfit) {
+    const updateRows = rows.filter(row => row.isUpdateRow);
+    const productRows = rows
+      .filter(row => !row.isUpdateRow)
+      .sort((a, b) => (bestRowProfit(b) ?? -Infinity) - (bestRowProfit(a) ?? -Infinity));
+    rows = [...updateRows, ...productRows];
+  }
+
+  rows.forEach(row => {
     const visibleByBasics = row.isUpdateRow || (kinds.has(row.kind) && capacities.has(row.capacity) && colors.has(row.color));
     const hasStock = row.cells.some(cell => cell.store && stores.has(cell.store) && cell.text && cell.text !== "×");
     if (!visibleByBasics || (stockOnly && !row.isUpdateRow && !hasStock)) return;
@@ -314,8 +340,6 @@ async function load() {
     state.data = data;
     setupFilters(data);
     document.getElementById("updated").textContent = `Cap nhat luc ${new Date(data.updatedAt).toLocaleString("vi-VN")} tu is-checker`;
-    document.getElementById("rowCount").textContent = data.summary.rowCount;
-    document.getElementById("shopCount").textContent = data.summary.shopCount;
     document.getElementById("storeCount").textContent = data.summary.storeCount;
     document.getElementById("bestProfit").textContent = money(data.summary.bestProfit);
     document.getElementById("errors").innerHTML = "";
@@ -328,6 +352,13 @@ async function load() {
 }
 
 document.getElementById("reloadBtn").addEventListener("click", load);
+document.getElementById("sortBtn").addEventListener("click", () => {
+  state.sortByProfit = !state.sortByProfit;
+  const sortBtn = document.getElementById("sortBtn");
+  sortBtn.classList.toggle("active", state.sortByProfit);
+  sortBtn.textContent = state.sortByProfit ? "Dang sap xep lai cao" : "Sap xep lai cao nhat";
+  renderTable();
+});
 document.getElementById("resetBtn").addEventListener("click", () => {
   document.querySelectorAll(".filters input[type='checkbox']").forEach(input => {
     input.checked = input.id !== "stockOnly";
