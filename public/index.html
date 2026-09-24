@@ -105,6 +105,8 @@
     th.basic { background: #edf4f3; }
     th.shop { background: #fff3d8; min-width: 112px; color: #5f3b05; }
     th.store { background: #e0f2fe; min-width: 30px; color: #075985; }
+    th.capacity, td.capacity { text-align: center; font-weight: 850; }
+    th.color, td.color { width: 44px; min-width: 44px; max-width: 44px; text-align: center; padding-left: 4px; padding-right: 4px; }
     td.price { text-align: right; min-width: 112px; padding: 6px; }
     td.stock { text-align: center; min-width: 30px; }
     td.best { background: var(--best) !important; box-shadow: inset 0 0 0 2px #f2c94c; }
@@ -138,10 +140,15 @@
     .sticky-1 { left: 0; min-width: 54px; }
     .sticky-2 { left: 54px; min-width: 54px; }
     .sticky-3 { left: 108px; min-width: 96px; }
+    .sticky-3.color { width: 44px; min-width: 44px; max-width: 44px; }
     .kind-max { background: #fee2e2; font-weight: 850; }
     .kind-pro { background: #dbeafe; font-weight: 850; }
     .kind-air { background: #dcfce7; font-weight: 850; }
     .kind-std { background: #eef2f2; font-weight: 850; }
+    .cap-256 { background: #ecfeff !important; color: #155e75; }
+    .cap-512 { background: #eef2ff !important; color: #3730a3; }
+    .cap-1tb { background: #fef3c7 !important; color: #92400e; }
+    .cap-2tb { background: #fae8ff !important; color: #86198f; }
     .note { display: block; color: var(--muted); font-size: 11px; min-height: 13px; }
     .mobile-controls, .mobile-cards { display: none; }
     .search-input {
@@ -552,12 +559,21 @@ function updateFilterSummary() {
   summary.textContent = `${checked}/${total} dang bat`;
 }
 
+function capacityClass(value) {
+  const text = String(value || "").toLowerCase();
+  if (text.includes("256")) return "cap-256";
+  if (text.includes("512")) return "cap-512";
+  if (text.includes("1tb")) return "cap-1tb";
+  if (text.includes("2tb")) return "cap-2tb";
+  return "";
+}
+
 function columnClass(column, index) {
   const classes = [];
   if (index < 5) classes.push("basic");
   if (index === 0) classes.push("sticky-1");
-  if (index === 1) classes.push("sticky-2");
-  if (index === 2) classes.push("sticky-3");
+  if (index === 1) classes.push("sticky-2", "capacity");
+  if (index === 2) classes.push("sticky-3", "color");
   if (column.shop) classes.push("shop");
   if (column.store) classes.push("store");
   return classes.join(" ");
@@ -566,8 +582,8 @@ function columnClass(column, index) {
 function cellClass(cell, index) {
   const classes = [];
   if (index === 0) classes.push("sticky-1");
-  if (index === 1) classes.push("sticky-2");
-  if (index === 2) classes.push("sticky-3");
+  if (index === 1) classes.push("sticky-2", "capacity", capacityClass(cell.text));
+  if (index === 2) classes.push("sticky-3", "color");
   if (index === 4) {
     classes.push("profit");
     if (cell.text.startsWith("+")) classes.push("positive");
