@@ -101,15 +101,11 @@
   <section class="summary" aria-label="Tong quan">
     <div class="stat"><div class="stat-label">San pham</div><div id="rowCount" class="stat-value">0</div></div>
     <div class="stat"><div class="stat-label">Shop bao gia</div><div id="shopCount" class="stat-value">0</div></div>
-    <div class="stat"><div class="stat-label">Kho Apple</div><div id="storeCount" class="stat-value">0</div></div>
+    <div class="stat"><div class="stat-label">Cot ton kho</div><div id="storeCount" class="stat-value">0</div></div>
     <div class="stat"><div class="stat-label">Lai cao nhat</div><div id="bestProfit" class="stat-value">N/A</div></div>
   </section>
   <section class="filters" aria-label="Bo loc">
     <div class="filter-row" id="kindFilters">
-      <label><input type="checkbox" value="Max" checked> Max</label>
-      <label><input type="checkbox" value="Pro" checked> Pro</label>
-      <label><input type="checkbox" value="Air" checked> Air</label>
-      <label><input type="checkbox" value="無印" checked> Thuong</label>
       <label><input id="stockOnly" type="checkbox"> Chi hien may con hang</label>
     </div>
     <div class="filter-row" id="capacityFilters"></div>
@@ -179,6 +175,7 @@ function cellClass(cell, index) {
     if (cell.text === "Max") classes.push("kind-max");
     else if (cell.text === "Pro") classes.push("kind-pro");
     else if (cell.text === "Air") classes.push("kind-air");
+    else if (cell.text === "Duo") classes.push("kind-std");
     else classes.push("kind-std");
   }
   return classes.join(" ");
@@ -219,6 +216,13 @@ function renderTable() {
 
 function setupFilters(data) {
   const products = data.rows.filter(row => !row.isUpdateRow);
+  const kindRoot = document.getElementById("kindFilters");
+  const stockOnlyChecked = document.getElementById("stockOnly")?.checked || false;
+  const kindValues = [...new Set(products.map(row => row.kind).filter(Boolean))];
+  kindRoot.innerHTML = `<label><input id="stockOnly" type="checkbox" ${stockOnlyChecked ? "checked" : ""}> Chi hien may con hang</label>`;
+  kindValues.forEach(value => {
+    kindRoot.insertAdjacentHTML("beforeend", `<label><input type="checkbox" value="${escapeHtml(value)}" checked> ${escapeHtml(value)}</label>`);
+  });
   makeCheckboxes("capacityFilters", [...new Set(products.map(row => row.capacity).filter(Boolean))]);
   makeCheckboxes("colorFilters", [...new Set(products.map(row => row.color).filter(Boolean))]);
   makeCheckboxes("shopFilters", data.columns.filter(column => column.shop).map(column => column.shop));

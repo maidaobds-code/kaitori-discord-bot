@@ -17,7 +17,7 @@ const PORT = Number(process.env.PORT || 3000);
 const DATA_FILE = path.join(__dirname, "data", "prices.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
-const IS_CHECKER_URL = process.env.IS_CHECKER_URL || "https://is-checker.com/iphone17_beta.html?5560";
+const IS_CHECKER_URL = process.env.IS_CHECKER_URL || "https://is-checker.com/iphone18_beta.html";
 let runningCheck = null;
 
 app.use(express.json());
@@ -516,22 +516,47 @@ function sanitizeTableHtml(html = "") {
   return $("root").html() || "";
 }
 
+function parsePriceNumber(value = "") {
+  const match = String(value).replace(/,/g, "").match(/\d{4,9}/);
+  if (!match) return null;
+  const price = Number(match[0]);
+  return Number.isFinite(price) ? price : null;
+}
+
+function columnKind($, el, label) {
+  const node = $(el);
+  const className = node.attr("class") || "";
+  const shop = node.attr("data-shop") || null;
+  if (shop || className.includes("shop-head") || className.includes("shop-cell")) {
+    return { shop, store: null };
+  }
+  const store = node.attr("data-store") || node.attr("data-stock-key") || null;
+  if (store || className.includes("stock-head") || className.includes("stock-cell")) {
+    return { shop: null, store: store || label };
+  }
+  return { shop: null, store: null };
+}
+
 async function scrapeIsChecker() {
   const html = await fetchHtml(IS_CHECKER_URL);
   const $ = cheerio.load(html);
-  const table = $("table.dataframe").first();
+  const table = $("table.dataframe").first().length
+    ? $("table.dataframe").first()
+    : $("table").filter((_, el) => $(el).find("tr").first().text().includes("種別")).first();
   if (!table.length) {
     throw new Error("Could not find is-checker price table");
   }
 
   const columns = table.find("thead tr").first().find("th,td").map((index, cell) => {
     const el = $(cell);
+    const label = cleanCellText(el.clone().find(".shop-xlinks").remove().end().text());
+    const kind = columnKind($, cell, label);
     return {
       index,
-      label: cleanCellText(el.clone().find(".shop-xlinks").remove().end().text()),
+      label,
       html: sanitizeTableHtml(el.html() || ""),
-      shop: el.attr("data-shop") || null,
-      store: el.attr("data-store") || null,
+      shop: kind.shop,
+      store: kind.store,
       teika: el.attr("data-teika") || null,
       className: el.attr("class") || ""
     };
@@ -541,36 +566,47 @@ async function scrapeIsChecker() {
     const tr = $(row);
     const cells = tr.find("td,th").map((cellIndex, cell) => {
       const el = $(cell);
+      const label = cleanCellText(el.text());
+      const kind = columnKind($, cell, columns[cellIndex]?.label || label);
       return {
         index: cellIndex,
-        text: cleanCellText(el.text()),
+        text: label,
         html: sanitizeTableHtml(el.html() || ""),
-        shop: el.attr("data-shop") || null,
-        store: el.attr("data-store") || null,
+        shop: kind.shop,
+        store: kind.store,
         teika: el.attr("data-teika") || null,
         className: el.attr("class") || "",
-        isBest: el.hasClass("is-best")
+        isBest: el.hasClass("is-best") || el.hasClass("highest")
       };
     }).get();
 
     return {
       index: rowIndex,
-      kind: cleanCellText(cells[0]?.text),
-      capacity: tr.attr("data-cap") || cleanCellText(cells[1]?.text),
-      color: tr.attr("data-color") || cleanCellText(cells[2]?.text),
-      teikaOld: Number(tr.attr("data-teika-old")) || null,
+      kind: tr.attr("data-model") || cleanCellText(cells[0]?.text),
+      capacity: tr.attr("data-cap") || tr.attr("data-capacity") || cleanCellText(cells[1]?.text),
+      color: tr.attr("data-color-name") || tr.attr("data-color") || cleanCellText(cells[2]?.text),
+      teikaOld: Number(tr.attr("data-teika-old")) || parsePriceNumber(cells[3]?.text),
       teikaNew: Number(tr.attr("data-teika-new")) || null,
-      isUpdateRow: cells.some(cell => cell.className.includes("upd-row")),
+      isUpdateRow: tr.hasClass("update-row") || cells.some(cell => cell.className.includes("upd-row")),
       cells
     };
   }).get();
 
   const dataRows = rows.filter(row => !row.isUpdateRow);
   const bestProfit = dataRows.reduce((best, row) => {
-    const raw = row.cells[4]?.text || "";
-    const match = raw.replace(/,/g, "").match(/[+-]?\d+/);
-    if (!match) return best;
-    return Math.max(best, Number(match[0]));
+    const rawProfit = row.cells[4]?.text || "";
+    const profitMatch = rawProfit.replace(/,/g, "").match(/[+-]\d+/);
+    if (profitMatch) return Math.max(best, Number(profitMatch[0]));
+
+    const retail = parsePriceNumber(row.cells[3]?.text);
+    const maxShopPrice = Math.max(
+      ...row.cells
+        .filter(cell => cell.shop)
+        .map(cell => parsePriceNumber(cell.text))
+        .filter(price => price != null)
+    );
+    if (!retail || !Number.isFinite(maxShopPrice)) return best;
+    return Math.max(best, maxShopPrice - retail);
   }, -Infinity);
 
   return {
