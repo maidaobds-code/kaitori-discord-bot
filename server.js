@@ -15,10 +15,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const DATA_FILE = path.join(__dirname, "data", "prices.json");
+const IS_CHECKER_STATE_FILE = path.join(__dirname, "data", "is-checker-price-state.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
 const IS_CHECKER_URL = process.env.IS_CHECKER_URL || "https://is-checker.com/iphone18_beta.html";
 const IS_CHECKER_CACHE_MS = Number(process.env.IS_CHECKER_CACHE_MS || 30000);
+const PRICE_CHANGE_TTL_MS = 60 * 60 * 1000;
 let runningCheck = null;
 let isCheckerCache = null;
 
@@ -525,6 +527,44 @@ function parsePriceNumber(value = "") {
   return Number.isFinite(price) ? price : null;
 }
 
+function isCheckerPriceKey(row, cell) {
+  return [row.kind, row.capacity, row.color, cell.shop].map(value => String(value || "").trim()).join("|");
+}
+
+function withSharedPriceChanges(rows) {
+  const now = Date.now();
+  const previousState = loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {} });
+  const nextSnapshot = {};
+  const nextChanges = { ...(previousState.changes || {}) };
+
+  rows.filter(row => !row.isUpdateRow).forEach(row => {
+    row.cells.filter(cell => cell.shop).forEach(cell => {
+      const price = parsePriceNumber(cell.text);
+      if (price == null) return;
+      const key = isCheckerPriceKey(row, cell);
+      const previous = previousState.snapshot?.[key];
+      nextSnapshot[key] = price;
+      if (previous != null && Number(previous) !== price) {
+        nextChanges[key] = now;
+      }
+    });
+  });
+
+  Object.keys(nextChanges).forEach(key => {
+    if (nextSnapshot[key] == null || now - Number(nextChanges[key]) > PRICE_CHANGE_TTL_MS) {
+      delete nextChanges[key];
+    }
+  });
+
+  saveJSON(IS_CHECKER_STATE_FILE, {
+    updatedAt: new Date(now).toISOString(),
+    snapshot: nextSnapshot,
+    changes: nextChanges
+  });
+
+  return nextChanges;
+}
+
 function columnKind($, el, label) {
   const node = $(el);
   const className = node.attr("class") || "";
@@ -599,6 +639,7 @@ async function scrapeIsChecker() {
   }).get();
 
   const dataRows = rows.filter(row => !row.isUpdateRow);
+  const priceChanges = withSharedPriceChanges(rows);
   const bestProfit = dataRows.reduce((best, row) => {
     const rawProfit = row.cells[4]?.text || "";
     const profitMatch = rawProfit.replace(/,/g, "").match(/[+-]\d+/);
@@ -621,6 +662,7 @@ async function scrapeIsChecker() {
     updatedAt: new Date().toISOString(),
     columns,
     rows,
+    priceChanges,
     summary: {
       rowCount: dataRows.length,
       shopCount: columns.filter(column => column.shop).length,

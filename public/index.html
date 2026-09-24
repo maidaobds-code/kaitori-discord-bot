@@ -284,32 +284,15 @@
 </main>
 <script src="/shared.js"></script>
 <script>
-const PRICE_SNAPSHOT_KEY = "is_checker_price_snapshot_v1";
-const PRICE_CHANGES_KEY = "is_checker_price_changes_v1";
 const CHANGE_SOFT_MS = 60 * 60 * 1000;
 const state = {
   data: null,
   sortMode: "profit",
-  priceSnapshot: loadStoredMap(PRICE_SNAPSHOT_KEY),
-  priceChanges: loadStoredMap(PRICE_CHANGES_KEY)
+  priceChanges: {}
 };
 const yen = n => n == null ? "N/A" : Number(n).toLocaleString("ja-JP");
 const money = n => n == null ? "N/A" : (n > 0 ? "+" : n < 0 ? "-" : "") + yen(Math.abs(n));
 const profitLabel = n => n == null ? "" : money(n);
-
-function loadStoredMap(key) {
-  try {
-    return JSON.parse(localStorage.getItem(key) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function saveStoredMap(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
 
 function displayCellText(cell, index) {
   if (index === 0 || index === 2) return translateVi(cell.text);
@@ -367,36 +350,6 @@ function productName(row) {
 
 function priceKey(row, cell) {
   return [row.kind, row.capacity, row.color, cell.shop].map(value => String(value || "").trim()).join("|");
-}
-
-function rememberPriceChanges(data) {
-  const now = Date.now();
-  const nextSnapshot = {};
-  const nextChanges = { ...state.priceChanges };
-
-  data.rows.filter(row => !row.isUpdateRow).forEach(row => {
-    row.cells.filter(cell => cell.shop).forEach(cell => {
-      const price = parseNumber(cell.text);
-      if (price == null) return;
-      const key = priceKey(row, cell);
-      const previous = state.priceSnapshot[key];
-      nextSnapshot[key] = price;
-      if (previous != null && Number(previous) !== price) {
-        nextChanges[key] = now;
-      }
-    });
-  });
-
-  Object.keys(nextChanges).forEach(key => {
-    if (!nextSnapshot[key] || now - nextChanges[key] > CHANGE_SOFT_MS) {
-      delete nextChanges[key];
-    }
-  });
-
-  state.priceSnapshot = nextSnapshot;
-  state.priceChanges = nextChanges;
-  saveStoredMap(PRICE_SNAPSHOT_KEY, nextSnapshot);
-  saveStoredMap(PRICE_CHANGES_KEY, nextChanges);
 }
 
 function priceChangeClass(row, cell) {
@@ -660,8 +613,8 @@ async function load(options = {}) {
   reloadBtn.disabled = true;
   try {
     const data = await fetchIsChecker(options);
-    rememberPriceChanges(data);
     state.data = data;
+    state.priceChanges = data.priceChanges || {};
     setupFilters(data);
     document.getElementById("updated").textContent = `Cap nhat luc ${new Date(data.updatedAt).toLocaleString("vi-VN")} tu is-checker`;
     document.getElementById("storeCount").textContent = data.summary.storeCount;
