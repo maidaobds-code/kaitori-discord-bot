@@ -284,7 +284,9 @@
 </main>
 <script src="/shared.js"></script>
 <script>
-const CHANGE_SOFT_MS = 60 * 60 * 1000;
+const CHANGE_WARM_MS = 30 * 60 * 1000;
+const CHANGE_SOFT_MS = 90 * 60 * 1000;
+const CHANGE_TTL_MS = 3 * 60 * 60 * 1000;
 const state = {
   data: null,
   sortMode: "profit",
@@ -357,9 +359,9 @@ function priceChangeClass(row, cell) {
   const changedAt = state.priceChanges[priceKey(row, cell)];
   if (!changedAt) return "";
   const age = Date.now() - changedAt;
-  if (age < 10 * 60 * 1000) return "change-new";
-  if (age < 30 * 60 * 1000) return "change-warm";
-  if (age < CHANGE_SOFT_MS) return "change-soft";
+  if (age < CHANGE_WARM_MS) return "change-new";
+  if (age < CHANGE_SOFT_MS) return "change-warm";
+  if (age < CHANGE_TTL_MS) return "change-soft";
   return "";
 }
 

@@ -22,7 +22,7 @@ const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
 const IS_CHECKER_URL = process.env.IS_CHECKER_URL || "https://is-checker.com/iphone18_beta.html";
 const IS_CHECKER_CACHE_MS = Number(process.env.IS_CHECKER_CACHE_MS || 30000);
-const PRICE_CHANGE_TTL_MS = 60 * 60 * 1000;
+const PRICE_CHANGE_TTL_MS = 3 * 60 * 60 * 1000;
 let runningCheck = null;
 let isCheckerCache = null;
 
