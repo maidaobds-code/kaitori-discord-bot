@@ -18,6 +18,8 @@
       --profit: #b42318;
       --loss: #075985;
       --stock: #067647;
+      --profit-bg: #fff1f0;
+      --loss-bg: #eef6ff;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     }
     * { box-sizing: border-box; }
@@ -57,14 +59,31 @@
     }
     th { position: sticky; top: 0; z-index: 6; background: #eef6ff; color: #17324d; text-align: center; font-weight: 850; }
     th.basic { background: #f1f5f9; }
-    th.shop { background: #fff7d6; min-width: 94px; }
+    th.shop { background: #fff7d6; min-width: 112px; }
     th.store { background: #ecfdf3; min-width: 30px; }
-    td.price { text-align: right; min-width: 94px; }
+    td.price { text-align: right; min-width: 112px; padding: 6px; }
     td.stock { text-align: center; min-width: 30px; }
-    td.best { background: var(--best) !important; box-shadow: inset 0 0 0 2px #f2c94c; font-weight: 850; }
+    td.best { background: var(--best) !important; box-shadow: inset 0 0 0 2px #f2c94c; }
     td.profit { text-align: right; font-weight: 850; }
     td.positive { color: var(--profit); }
     td.negative { color: var(--loss); }
+    .quote-cell { display: grid; gap: 3px; justify-items: end; line-height: 1.15; }
+    .quote-price { color: #0f172a; font-size: 13px; font-weight: 850; }
+    .quote-profit {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      min-width: 72px;
+      border-radius: 999px;
+      padding: 3px 7px;
+      font-size: 11px;
+      font-weight: 850;
+    }
+    .quote-profit.positive { background: var(--profit-bg); color: var(--profit); }
+    .quote-profit.negative { background: var(--loss-bg); color: var(--loss); }
+    .quote-profit.zero { background: #f1f5f9; color: #475569; }
+    .quote-delta { color: var(--muted); font-size: 10px; font-weight: 650; }
+    .quote-empty { color: #94a3b8; font-weight: 750; }
     td.stock-ok { background: #ecfdf3; color: var(--stock); font-weight: 850; }
     td.stock-ng { color: #b42318; }
     .sticky-1, .sticky-2, .sticky-3 { position: sticky; z-index: 5; box-shadow: 1px 0 0 var(--line); }
@@ -125,10 +144,63 @@
 const state = { data: null };
 const yen = n => n == null ? "N/A" : Number(n).toLocaleString("ja-JP");
 const money = n => n == null ? "N/A" : (n > 0 ? "+" : n < 0 ? "-" : "") + yen(Math.abs(n));
+const profitLabel = n => n == null ? "" : n > 0 ? `Lai ${money(n)}` : n < 0 ? `Lo ${money(n)}` : "Hoa von";
 const escapeHtml = value => String(value ?? "").replace(/[&<>'"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", "\"":"&quot;" })[c]);
 
 function plainCellHtml(cell) {
   return (cell.html || escapeHtml(cell.text)).replace(/\sstyle="[^"]*"/g, "");
+}
+
+function parseNumber(value) {
+  const match = String(value ?? "").replace(/,/g, "").match(/\d{4,9}/);
+  return match ? Number(match[0]) : null;
+}
+
+function parseDelta(value) {
+  const match = String(value ?? "").replace(/,/g, "").match(/\(([+-]\d+)\)/);
+  return match ? Number(match[1]) : null;
+}
+
+function profitClass(value) {
+  if (value > 0) return "positive";
+  if (value < 0) return "negative";
+  return "zero";
+}
+
+function renderShopCell(cell, row) {
+  const buyPrice = parseNumber(cell.text);
+  if (buyPrice == null) return `<span class="quote-empty">-</span>`;
+
+  const retail = Number(row.teikaOld) || parseNumber(row.cells[3]?.text);
+  const profit = retail ? buyPrice - retail : null;
+  const delta = parseDelta(cell.text);
+
+  return `
+    <div class="quote-cell">
+      <div class="quote-price">${yen(buyPrice)}</div>
+      ${profit == null ? "" : `<div class="quote-profit ${profitClass(profit)}">${profitLabel(profit)}</div>`}
+      ${delta == null ? "" : `<div class="quote-delta">Bien dong ${money(delta)}</div>`}
+    </div>
+  `;
+}
+
+function bestRowProfit(row) {
+  const retail = Number(row.teikaOld) || parseNumber(row.cells[3]?.text);
+  if (!retail) return null;
+  const profits = row.cells
+    .filter(cell => cell.shop)
+    .map(cell => {
+      const price = parseNumber(cell.text);
+      return price == null ? null : price - retail;
+    })
+    .filter(value => value != null);
+  return profits.length ? Math.max(...profits) : null;
+}
+
+function renderRowProfitCell(row) {
+  const profit = bestRowProfit(row);
+  if (profit == null) return plainCellHtml(row.cells[4] || {});
+  return `<span class="${profitClass(profit)}">${profitLabel(profit)}</span>`;
 }
 
 function makeCheckboxes(rootId, values, checked = true) {
@@ -207,7 +279,9 @@ function renderTable() {
     let html = "<tr>";
     row.cells.forEach((cell, index) => {
       const hidden = (cell.shop && !shops.has(cell.shop)) || (cell.store && !stores.has(cell.store));
-      html += `<td class="${cellClass(cell, index)} ${hidden ? "hidden" : ""}">${plainCellHtml(cell)}</td>`;
+      const content = cell.shop ? renderShopCell(cell, row)
+        : (!row.isUpdateRow && index === 4 ? renderRowProfitCell(row) : plainCellHtml(cell));
+      html += `<td class="${cellClass(cell, index)} ${hidden ? "hidden" : ""}">${content}</td>`;
     });
     html += "</tr>";
     body.insertAdjacentHTML("beforeend", html);
