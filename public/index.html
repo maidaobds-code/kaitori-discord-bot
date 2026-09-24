@@ -250,7 +250,6 @@
       <button id="filterBtn">Mo bo loc</button>
       <button id="sortBtn" class="active">Lai cao den thap</button>
       <button id="nameSortBtn">Ten san pham</button>
-      <button id="resetBtn">Reset loc</button>
       <button id="reloadBtn" class="primary">Tai lai</button>
     </div>
   </div>
@@ -653,13 +652,6 @@ document.getElementById("nameSortBtn").addEventListener("click", () => {
   setSortMode("name");
 });
 document.getElementById("quickSearch").addEventListener("input", renderTable);
-document.getElementById("resetBtn").addEventListener("click", () => {
-  document.querySelectorAll(".filters input[type='checkbox']").forEach(input => {
-    input.checked = input.id !== "stockOnly";
-  });
-  document.getElementById("quickSearch").value = "";
-  renderTable();
-});
 
 load();
 setInterval(load, 60000);
