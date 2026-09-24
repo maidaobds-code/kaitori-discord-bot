@@ -7,19 +7,21 @@
   <style>
     :root {
       color-scheme: light;
-      --bg: #f6f7fb;
+      --bg: #f4f7f6;
       --surface: #ffffff;
-      --line: #dfe5ee;
-      --line-strong: #c8d2df;
-      --text: #111827;
-      --muted: #64748b;
-      --accent: #0f6fc6;
-      --best: #fff2c7;
-      --profit: #087f5b;
-      --loss: #c92a2a;
-      --stock: #067647;
-      --profit-bg: #e7f7ef;
-      --loss-bg: #fff0f0;
+      --surface-soft: #f8fbfb;
+      --line: #d8e4e2;
+      --line-strong: #b8c9c6;
+      --text: #10201d;
+      --muted: #5f746f;
+      --accent: #0f766e;
+      --accent-strong: #155e75;
+      --best: #fff7cc;
+      --profit: #047857;
+      --loss: #b42318;
+      --stock: #047857;
+      --profit-bg: #dcfce7;
+      --loss-bg: #fee4e2;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     }
     * { box-sizing: border-box; }
@@ -29,7 +31,7 @@
       position: sticky; top: 0; z-index: 20;
       display: flex; justify-content: space-between; gap: 16px; align-items: center;
       padding: 12px 14px; margin: -16px -16px 12px;
-      background: rgba(246, 247, 251, .92); backdrop-filter: blur(14px);
+      background: rgba(244, 247, 246, .94); backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--line);
     }
     h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: 0; }
@@ -53,7 +55,7 @@
       text-decoration: none;
     }
     button.primary { border-color: var(--accent); background: var(--accent); color: white; }
-    button.active { border-color: #087f5b; background: #e7f7ef; color: #066247; }
+    button.active { border-color: var(--accent); background: #dff7ef; color: #064e3b; }
     button:disabled { opacity: .65; cursor: wait; }
     .summary { display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px; }
     .stat { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 12px; }
@@ -81,16 +83,16 @@
       border: 1px solid var(--line);
       border-radius: 999px;
       padding: 0 10px;
-      background: #f8fafc;
-      color: #334155;
+      background: var(--surface-soft);
+      color: #36514b;
       font-size: 12px;
       font-weight: 750;
       white-space: nowrap;
       cursor: pointer;
       user-select: none;
     }
-    label:hover { border-color: #9db7d4; background: #eef6ff; }
-    label:has(input:checked) { border-color: var(--accent); background: #eaf5ff; color: #0f4f8f; }
+    label:hover { border-color: #81aaa3; background: #edf8f6; }
+    label:has(input:checked) { border-color: var(--accent); background: #dff7ef; color: #064e3b; }
     label input { position: absolute; opacity: 0; pointer-events: none; }
     .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); max-height: calc(100vh - 250px); }
     table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: 12px; }
@@ -99,10 +101,10 @@
       padding: 6px 8px; white-space: nowrap; background: var(--surface);
       vertical-align: middle; font-variant-numeric: tabular-nums;
     }
-    th { position: sticky; top: 0; z-index: 6; background: #eef6ff; color: #17324d; text-align: center; font-weight: 850; }
-    th.basic { background: #f1f5f9; }
-    th.shop { background: #fff7d6; min-width: 112px; }
-    th.store { background: #ecfdf3; min-width: 30px; }
+    th { position: sticky; top: 0; z-index: 6; background: #e6f3f1; color: #123b35; text-align: center; font-weight: 850; }
+    th.basic { background: #edf4f3; }
+    th.shop { background: #fff3d8; min-width: 112px; color: #5f3b05; }
+    th.store { background: #e0f2fe; min-width: 30px; color: #075985; }
     td.price { text-align: right; min-width: 112px; padding: 6px; }
     td.stock { text-align: center; min-width: 30px; }
     td.best { background: var(--best) !important; box-shadow: inset 0 0 0 2px #f2c94c; }
@@ -123,23 +125,23 @@
     }
     .quote-profit.positive { background: var(--profit-bg); color: var(--profit); }
     .quote-profit.negative { background: var(--loss-bg); color: var(--loss); }
-    .quote-profit.zero { background: #f1f5f9; color: #475569; }
+    .quote-profit.zero { background: #eef2f2; color: #4b635d; }
     .quote-delta { color: var(--muted); font-size: 10px; font-weight: 650; }
     .quote-empty { color: #94a3b8; font-weight: 750; }
     td.price.change-new { box-shadow: inset 0 0 0 3px #f97316; background: #fff4e6; }
     td.price.change-warm { box-shadow: inset 0 0 0 2px #fb923c; background: #fff7ed; }
     td.price.change-soft { box-shadow: inset 0 0 0 1px #fdba74; background: #fffaf4; }
-    td.stock-ok { background: #ecfdf3; color: var(--stock); font-weight: 850; }
+    td.stock-ok { background: #dcfce7; color: var(--stock); font-weight: 850; }
     td.stock-ng { color: #b42318; }
     .sticky-1, .sticky-2, .sticky-3 { position: sticky; z-index: 5; box-shadow: 1px 0 0 var(--line); }
     th.sticky-1, th.sticky-2, th.sticky-3 { z-index: 8; }
     .sticky-1 { left: 0; min-width: 54px; }
     .sticky-2 { left: 54px; min-width: 54px; }
     .sticky-3 { left: 108px; min-width: 96px; }
-    .kind-max { background: #ffe8ec; font-weight: 850; }
-    .kind-pro { background: #e8f1ff; font-weight: 850; }
-    .kind-air { background: #eaf8ef; font-weight: 850; }
-    .kind-std { background: #f1f5f9; font-weight: 850; }
+    .kind-max { background: #fee2e2; font-weight: 850; }
+    .kind-pro { background: #dbeafe; font-weight: 850; }
+    .kind-air { background: #dcfce7; font-weight: 850; }
+    .kind-std { background: #eef2f2; font-weight: 850; }
     .note { display: block; color: var(--muted); font-size: 11px; min-height: 13px; }
     .hidden { display: none; }
     .error { margin-top: 10px; border: 1px solid #fecdd3; background: #fff1f2; color: #9f1239; border-radius: 8px; padding: 12px; font-weight: 650; }
@@ -154,7 +156,7 @@
 <main class="app">
   <div class="topbar">
     <div>
-      <h1>Bang bao gia day du iPhone Kaitori</h1>
+      <h1>Bang bao gia thu mua iPhone</h1>
       <div id="updated" class="meta">Dang tai du lieu...</div>
     </div>
     <div class="actions">
@@ -167,7 +169,7 @@
     </div>
   </div>
   <section class="summary" aria-label="Tong quan">
-    <div class="stat"><div class="stat-label">Cot ton kho</div><div id="storeCount" class="stat-value">0</div></div>
+    <div class="stat"><div class="stat-label">Cua hang Apple</div><div id="storeCount" class="stat-value">0</div></div>
     <div class="stat"><div class="stat-label">Lai cao nhat</div><div id="bestProfit" class="stat-value">N/A</div></div>
   </section>
   <section id="filterPanel" class="filters collapsed" aria-label="Bo loc">
@@ -219,8 +221,13 @@ function saveStoredMap(key, value) {
   } catch {}
 }
 
-function plainCellHtml(cell) {
-  return (cell.html || escapeHtml(cell.text)).replace(/\sstyle="[^"]*"/g, "");
+function displayCellText(cell, index) {
+  if (index === 0 || index === 2) return translateVi(cell.text);
+  return cell.text;
+}
+
+function plainCellHtml(cell, index) {
+  return escapeHtml(displayCellText(cell, index));
 }
 
 function parseDelta(value) {
@@ -265,7 +272,7 @@ function bestRowProfit(row) {
 }
 
 function productName(row) {
-  return [row.kind, row.capacity, row.color].filter(Boolean).join(" ");
+  return [row.kind, row.capacity, translateVi(row.color)].filter(Boolean).join(" ");
 }
 
 function priceKey(row, cell) {
@@ -333,15 +340,15 @@ function setSortMode(mode) {
 
 function renderRowProfitCell(row) {
   const profit = bestRowProfit(row);
-  if (profit == null) return plainCellHtml(row.cells[4] || {});
+  if (profit == null) return plainCellHtml(row.cells[4] || {}, 4);
   return `<span class="${profitClass(profit)}">${profitLabel(profit)}</span>`;
 }
 
-function makeCheckboxes(rootId, values, checked = true) {
+function makeCheckboxes(rootId, values, checked = true, labelFor = value => value) {
   const root = document.getElementById(rootId);
   root.innerHTML = "";
   values.forEach(value => {
-    root.insertAdjacentHTML("beforeend", `<label><input type="checkbox" value="${escapeHtml(value)}" ${checked ? "checked" : ""}> ${escapeHtml(value)}</label>`);
+    root.insertAdjacentHTML("beforeend", `<label><input type="checkbox" value="${escapeHtml(value)}" ${checked ? "checked" : ""}> ${escapeHtml(labelFor(value))}</label>`);
   });
 }
 
@@ -406,7 +413,7 @@ function renderTable() {
   head.innerHTML = "";
   data.columns.forEach((column, index) => {
     const hidden = (column.shop && !shops.has(column.shop)) || Boolean(column.store);
-    head.insertAdjacentHTML("beforeend", `<th class="${columnClass(column, index)} ${hidden ? "hidden" : ""}">${column.html || escapeHtml(column.label)}</th>`);
+    head.insertAdjacentHTML("beforeend", `<th class="${columnClass(column, index)} ${hidden ? "hidden" : ""}">${escapeHtml(displayColumnLabel(column))}</th>`);
   });
 
   const body = document.getElementById("bodyRows");
@@ -423,7 +430,7 @@ function renderTable() {
     row.cells.forEach((cell, index) => {
       const hidden = (cell.shop && !shops.has(cell.shop)) || Boolean(cell.store);
       const content = cell.shop ? renderShopCell(cell, row)
-        : (!row.isUpdateRow && index === 4 ? renderRowProfitCell(row) : plainCellHtml(cell));
+        : (!row.isUpdateRow && index === 4 ? renderRowProfitCell(row) : plainCellHtml(cell, index));
       html += `<td class="${cellClass(cell, index)} ${priceChangeClass(row, cell)} ${hidden ? "hidden" : ""}">${content}</td>`;
     });
     html += "</tr>";
@@ -438,11 +445,11 @@ function setupFilters(data) {
   const kindValues = [...new Set(products.map(row => row.kind).filter(Boolean))];
   kindRoot.innerHTML = `<label><input id="stockOnly" type="checkbox" ${stockOnlyChecked ? "checked" : ""}> Chi hien may con hang</label>`;
   kindValues.forEach(value => {
-    kindRoot.insertAdjacentHTML("beforeend", `<label><input type="checkbox" value="${escapeHtml(value)}" checked> ${escapeHtml(value)}</label>`);
+    kindRoot.insertAdjacentHTML("beforeend", `<label><input type="checkbox" value="${escapeHtml(value)}" checked> ${escapeHtml(translateVi(value))}</label>`);
   });
   makeCheckboxes("capacityFilters", [...new Set(products.map(row => row.capacity).filter(Boolean))]);
-  makeCheckboxes("colorFilters", [...new Set(products.map(row => row.color).filter(Boolean))]);
-  makeCheckboxes("shopFilters", data.columns.filter(column => column.shop).map(column => column.shop));
+  makeCheckboxes("colorFilters", [...new Set(products.map(row => row.color).filter(Boolean))], true, translateVi);
+  makeCheckboxes("shopFilters", data.columns.filter(column => column.shop).map(column => column.shop), true, translateVi);
   document.querySelectorAll(".filters input").forEach(input => input.addEventListener("change", renderTable));
   updateFilterSummary();
 }
