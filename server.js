@@ -18,7 +18,9 @@ const DATA_FILE = path.join(__dirname, "data", "prices.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
 const IS_CHECKER_URL = process.env.IS_CHECKER_URL || "https://is-checker.com/iphone18_beta.html";
+const IS_CHECKER_CACHE_MS = Number(process.env.IS_CHECKER_CACHE_MS || 30000);
 let runningCheck = null;
+let isCheckerCache = null;
 
 app.use(express.json());
 app.use("/api", (req, res, next) => {
@@ -643,7 +645,11 @@ app.get("/api/live-prices", async (req, res) => {
 
 app.get("/api/is-checker", async (req, res) => {
   try {
-    res.json(await scrapeIsChecker());
+    const now = Date.now();
+    if (!isCheckerCache || now - isCheckerCache.savedAt > IS_CHECKER_CACHE_MS || req.query.refresh === "1") {
+      isCheckerCache = { savedAt: now, data: await scrapeIsChecker() };
+    }
+    res.json(isCheckerCache.data);
   } catch (error) {
     res.status(500).json({
       ok: false,

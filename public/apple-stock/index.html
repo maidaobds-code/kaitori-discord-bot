@@ -125,25 +125,9 @@
   </section>
 </main>
 
+<script src="/shared.js"></script>
 <script>
 const state = { data: null };
-const escapeHtml = value => String(value ?? "").replace(/[&<>'"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", "\"":"&quot;" })[c]);
-
-function checkedSet(rootId) {
-  return new Set([...document.querySelectorAll(`#${rootId} input[type="checkbox"]:checked`)].map(input => input.value));
-}
-
-function stockClass(text) {
-  const value = String(text || "").trim();
-  if (!value || value === "-") return "unknown";
-  if (value === "×") return "no-stock";
-  return "has-stock";
-}
-
-function stockText(text) {
-  const value = String(text || "").trim();
-  return value || "-";
-}
 
 function setupFilters(data) {
   const kinds = [...new Set(data.rows.filter(row => !row.isUpdateRow).map(row => row.kind).filter(Boolean))];
@@ -201,13 +185,11 @@ function render() {
   mount.innerHTML = html;
 }
 
-async function load() {
+async function load(options = {}) {
   const reloadBtn = document.getElementById("reloadBtn");
   reloadBtn.disabled = true;
   try {
-    const res = await fetch(`/api/is-checker?_=${Date.now()}`, { cache: "no-store" });
-    const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.errors?.[0]?.error || `API returned ${res.status}`);
+    const data = await fetchIsChecker(options);
     state.data = data;
     document.getElementById("updated").textContent = `Cap nhat luc ${new Date(data.updatedAt).toLocaleString("vi-VN")}`;
     setupFilters(data);
@@ -219,7 +201,7 @@ async function load() {
   }
 }
 
-document.getElementById("reloadBtn").addEventListener("click", load);
+document.getElementById("reloadBtn").addEventListener("click", () => load({ force: true }));
 load();
 setInterval(load, 60000);
 </script>

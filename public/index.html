@@ -186,20 +186,15 @@
   </section>
   <div id="errors"></div>
 </main>
+<script src="/shared.js"></script>
 <script>
 const state = { data: null, sortByProfit: false };
 const yen = n => n == null ? "N/A" : Number(n).toLocaleString("ja-JP");
 const money = n => n == null ? "N/A" : (n > 0 ? "+" : n < 0 ? "-" : "") + yen(Math.abs(n));
 const profitLabel = n => n == null ? "" : money(n);
-const escapeHtml = value => String(value ?? "").replace(/[&<>'"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", "\"":"&quot;" })[c]);
 
 function plainCellHtml(cell) {
   return (cell.html || escapeHtml(cell.text)).replace(/\sstyle="[^"]*"/g, "");
-}
-
-function parseNumber(value) {
-  const match = String(value ?? "").replace(/,/g, "").match(/\d{4,9}/);
-  return match ? Number(match[0]) : null;
 }
 
 function parseDelta(value) {
@@ -257,24 +252,12 @@ function makeCheckboxes(rootId, values, checked = true) {
   });
 }
 
-function checkedSet(rootId) {
-  return new Set([...document.querySelectorAll(`#${rootId} input[type="checkbox"]:checked`)].map(input => input.value));
-}
-
 function updateFilterSummary() {
   const summary = document.getElementById("filterSummary");
   if (!summary) return;
   const total = document.querySelectorAll("#filterPanel input[type='checkbox']").length;
   const checked = document.querySelectorAll("#filterPanel input[type='checkbox']:checked").length;
   summary.textContent = `${checked}/${total} dang bat`;
-}
-
-function updateStoreSummary() {
-  const summary = document.getElementById("storeSummary");
-  if (!summary) return;
-  const total = document.querySelectorAll("#storePanel input[type='checkbox']").length;
-  const checked = document.querySelectorAll("#storePanel input[type='checkbox']:checked").length;
-  summary.textContent = `${checked}/${total} khu vuc`;
 }
 
 function columnClass(column, index) {
@@ -325,7 +308,6 @@ function renderTable() {
   const stores = new Set(data.columns.filter(column => column.store).map(column => column.store));
   const stockOnly = document.getElementById("stockOnly").checked;
   updateFilterSummary();
-  updateStoreSummary();
 
   const head = document.getElementById("headRow");
   head.innerHTML = "";
@@ -375,16 +357,13 @@ function setupFilters(data) {
   makeCheckboxes("shopFilters", data.columns.filter(column => column.shop).map(column => column.shop));
   document.querySelectorAll(".filters input").forEach(input => input.addEventListener("change", renderTable));
   updateFilterSummary();
-  updateStoreSummary();
 }
 
-async function load() {
+async function load(options = {}) {
   const reloadBtn = document.getElementById("reloadBtn");
   reloadBtn.disabled = true;
   try {
-    const res = await fetch(`/api/is-checker?_=${Date.now()}`, { cache: "no-store" });
-    const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.errors?.[0]?.error || `API returned ${res.status}`);
+    const data = await fetchIsChecker(options);
     state.data = data;
     setupFilters(data);
     document.getElementById("updated").textContent = `Cap nhat luc ${new Date(data.updatedAt).toLocaleString("vi-VN")} tu is-checker`;
@@ -399,7 +378,7 @@ async function load() {
   }
 }
 
-document.getElementById("reloadBtn").addEventListener("click", load);
+document.getElementById("reloadBtn").addEventListener("click", () => load({ force: true }));
 document.getElementById("filterBtn").addEventListener("click", () => {
   const panel = document.getElementById("filterPanel");
   const button = document.getElementById("filterBtn");
