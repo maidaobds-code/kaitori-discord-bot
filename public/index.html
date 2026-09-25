@@ -129,6 +129,13 @@
     .quote-profit.negative { background: var(--loss-bg); color: var(--loss); }
     .quote-profit.zero { background: #eef2f2; color: #4b635d; }
     .quote-delta { color: var(--muted); font-size: 10px; font-weight: 650; }
+    .quote-updated {
+      display: inline-flex;
+      align-items: center;
+      color: #9a3412;
+      font-size: 10px;
+      font-weight: 800;
+    }
     .quote-empty { color: #94a3b8; font-weight: 750; }
     td.price.change-new { box-shadow: inset 0 0 0 3px #f97316; background: #fff4e6; }
     td.price.change-warm { box-shadow: inset 0 0 0 2px #fb923c; background: #fff7ed; }
@@ -196,6 +203,7 @@
     .mobile-offer.change-warm { box-shadow: inset 0 0 0 2px #fb923c; background: #fff7ed; }
     .mobile-offer.change-soft { box-shadow: inset 0 0 0 1px #fdba74; background: #fffaf4; }
     .mobile-shop { font-weight: 850; }
+    .mobile-price-wrap { display: grid; gap: 3px; justify-items: end; }
     .mobile-price { text-align: right; font-size: 14px; font-weight: 900; }
     .mobile-stock {
       padding: 0 8px 8px;
@@ -336,6 +344,7 @@ function renderShopCell(cell, row) {
       <div class="quote-price">${yen(buyPrice)}</div>
       ${profit == null ? "" : `<div class="quote-profit ${profitClass(profit)}">${profitLabel(profit)}</div>`}
       ${delta == null ? "" : `<div class="quote-delta">Bien dong ${money(delta)}</div>`}
+      ${renderChangeTime(row, cell)}
     </div>
   `;
 }
@@ -370,6 +379,29 @@ function priceChangeClass(row, cell) {
   if (age < CHANGE_SOFT_MS) return "change-warm";
   if (age < CHANGE_TTL_MS) return "change-soft";
   return "";
+}
+
+function priceChangedAt(row, cell) {
+  if (!cell.shop) return null;
+  const changedAt = Number(state.priceChanges[priceKey(row, cell)]);
+  return Number.isFinite(changedAt) && changedAt > 0 ? changedAt : null;
+}
+
+function formatChangeTime(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function renderChangeTime(row, cell) {
+  const changedAt = priceChangedAt(row, cell);
+  if (!changedAt) return "";
+  return `<div class="quote-updated">Doi luc ${escapeHtml(formatChangeTime(changedAt))}</div>`;
 }
 
 function rowHasStock(row, stores) {
@@ -458,7 +490,10 @@ function renderOffer(row, offer) {
         <div class="mobile-shop">${escapeHtml(shopName)}</div>
         ${offer.profit == null ? "" : `<div class="quote-profit ${profitClass(offer.profit)}">${profitLabel(offer.profit)}</div>`}
       </div>
-      <div class="mobile-price">${yen(offer.price)}</div>
+      <div class="mobile-price-wrap">
+        <div class="mobile-price">${yen(offer.price)}</div>
+        ${renderChangeTime(row, offer.cell)}
+      </div>
     </div>
   `;
 }
