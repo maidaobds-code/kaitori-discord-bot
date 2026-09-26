@@ -1,22 +1,22 @@
 const IS_CHECKER_CACHE_KEY = "is_checker_payload_v1";
 const IS_CHECKER_CACHE_MS = 30000;
 const VI_LABELS = {
-  "\u7a2e\u5225": "Loai",
-  "\u5bb9\u91cf": "Dung luong",
-  "\u8272": "Mau",
-  "\u5b9a\u4fa1": "Gia niem yet",
-  "\u5dee\u76ca": "Lai/Lo",
-  "\u30d0\u30fc\u30ac\u30f3\u30c7\u30a3": "Do Burgundy",
+  "\u7a2e\u5225": "Loại",
+  "\u5bb9\u91cf": "Dung lượng",
+  "\u8272": "Màu",
+  "\u5b9a\u4fa1": "Giá niêm yết",
+  "\u5dee\u76ca": "Lãi/Lỗ",
+  "\u30d0\u30fc\u30ac\u30f3\u30c7\u30a3": "Đỏ Burgundy",
   "\u30b0\u30ec\u30a4\u30b7\u30e3\u30fc": "Xanh Glacier",
-  "\u30b7\u30eb\u30d0\u30fc": "Bac",
-  "\u30d6\u30e9\u30c3\u30af": "Den",
-  "\u30b9\u30bf\u30fc\u30db\u30ef\u30a4\u30c8": "Trang Star",
+  "\u30b7\u30eb\u30d0\u30fc": "Bạc",
+  "\u30d6\u30e9\u30c3\u30af": "Đen",
+  "\u30b9\u30bf\u30fc\u30db\u30ef\u30a4\u30c8": "Trắng Star",
   "\u30ca\u30a4\u30c8\u30b9\u30ab\u30a4": "Xanh Night Sky",
-  "\u7d2b": "Tim",
-  "\u9ed2": "Den",
+  "\u7d2b": "Tím",
+  "\u9ed2": "Đen",
   "\u9752": "Xanh",
-  "\u9280": "Bac",
-  "\u767d": "Trang",
+  "\u9280": "Bạc",
+  "\u767d": "Trắng",
   "\u68ee\u68ee": "Morimori",
   "\u30bd\u30e0\u30ea\u30a8": "Somurie",
   "\u30a8\u30ce\u30ad\u30f3": "Enoking",
@@ -55,7 +55,7 @@ function escapeHtml(value) {
 function translateVi(value) {
   const text = String(value ?? "").replace(/\s+/g, " ").trim();
   if (!text) return "";
-  if (text.includes("\u5dee\u76ca")) return "Lai/Lo";
+  if (text.includes("\u5dee\u76ca")) return "Lãi/Lỗ";
   return VI_LABELS[text] || text;
 }
 
@@ -101,14 +101,14 @@ async function fetchIsChecker({ force = false } = {}) {
   const raw = await res.text();
   if (!contentType.includes("application/json")) {
     const preview = raw.replace(/\s+/g, " ").trim().slice(0, 120);
-    throw new Error(`API khong tra ve JSON. Kiem tra route /api/is-checker. Response: ${preview || res.status}`);
+    throw new Error(`API không trả về JSON. Kiểm tra route /api/is-checker. Phản hồi: ${preview || res.status}`);
   }
 
   let data;
   try {
     data = JSON.parse(raw);
   } catch {
-    throw new Error("API tra ve JSON khong hop le.");
+    throw new Error("API trả về JSON không hợp lệ.");
   }
 
   if (!res.ok || !data.ok) throw new Error(data.errors?.[0]?.error || `API returned ${res.status}`);

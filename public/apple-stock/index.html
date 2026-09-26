@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ton kho Apple</title>
+  <title>Tồn kho Apple</title>
   <style>
     :root {
       color-scheme: light;
@@ -254,12 +254,12 @@
 <main class="app">
   <div class="topbar">
     <div>
-      <h1>Ton kho Apple</h1>
-      <div id="updated" class="meta">Dang tai du lieu...</div>
+      <h1>Tồn kho Apple</h1>
+      <div id="updated" class="meta">Đang tải dữ liệu...</div>
     </div>
     <div class="actions">
-      <a class="button" href="/">Bang bao gia</a>
-      <button id="reloadBtn" class="primary">Tai lai</button>
+      <a class="button" href="/">Bảng báo giá</a>
+      <button id="reloadBtn" class="primary">Tải lại</button>
     </div>
   </div>
 
@@ -294,7 +294,7 @@ function render() {
   renderSummary(data, products, stores);
 
   if (!stores.length || !products.length) {
-    mount.innerHTML = `<div class="empty">Khong co du lieu ton kho.</div>`;
+    mount.innerHTML = `<div class="empty">Không có dữ liệu tồn kho.</div>`;
     return;
   }
 
@@ -303,7 +303,7 @@ function render() {
     <table class="stock-table">
       <thead>
         <tr>
-          <th>San pham</th>
+          <th>Sản phẩm</th>
           ${stores.map(store => `<th>${escapeHtml(store.label || store.store)}</th>`).join("")}
         </tr>
       </thead>
@@ -341,15 +341,15 @@ function renderSummary(data, products, stores) {
   const changed = Object.keys(data.stockChanges || {}).length;
   document.getElementById("stockSummary").innerHTML = `
     <div class="stat">
-      <div class="stat-label">San pham</div>
+      <div class="stat-label">Sản phẩm</div>
       <div class="stat-value">${products.length}</div>
     </div>
     <div class="stat">
-      <div class="stat-label">Con hang</div>
+      <div class="stat-label">Còn hàng</div>
       <div class="stat-value">${stocked}/${totalCells}</div>
     </div>
     <div class="stat">
-      <div class="stat-label">Moi doi</div>
+      <div class="stat-label">Mới đổi</div>
       <div class="stat-value">${changed}</div>
     </div>
   `;
@@ -394,9 +394,9 @@ function changedClass(data, row, cell) {
 
 function statusLabel(text) {
   const value = String(text || "").trim();
-  if (!value || value === "-") return "Chua ro";
-  if (value === "×") return "Het hang";
-  return "Con hang";
+  if (!value || value === "-") return "Chưa rõ";
+  if (value === "×") return "Hết hàng";
+  return "Còn hàng";
 }
 
 async function load(options = {}) {
@@ -405,11 +405,11 @@ async function load(options = {}) {
   try {
     const data = await fetchIsChecker(options);
     state.data = data;
-    document.getElementById("updated").textContent = `Cap nhat luc ${new Date(data.updatedAt).toLocaleString("vi-VN")}`;
+    document.getElementById("updated").textContent = `Cập nhật lúc ${new Date(data.updatedAt).toLocaleString("vi-VN")}`;
     setupFilters(data);
     render();
   } catch (error) {
-    document.getElementById("tableMount").innerHTML = `<div class="error">Khong the lay ton kho: ${escapeHtml(error.message)}</div>`;
+    document.getElementById("tableMount").innerHTML = `<div class="error">Không thể lấy tồn kho: ${escapeHtml(error.message)}</div>`;
   } finally {
     reloadBtn.disabled = false;
   }

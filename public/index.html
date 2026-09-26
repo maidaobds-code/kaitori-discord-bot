@@ -250,43 +250,43 @@
 <main class="app">
   <div class="topbar">
     <div>
-      <h1>Bang bao gia thu mua iPhone</h1>
-      <div id="updated" class="meta">Dang tai du lieu...</div>
+      <h1>Bảng báo giá thu mua iPhone</h1>
+      <div id="updated" class="meta">Đang tải dữ liệu...</div>
     </div>
     <div class="actions">
-      <a class="button" href="/apple-stock/">Ton kho Apple</a>
-      <button id="filterBtn">Mo bo loc</button>
-      <button id="sortBtn" class="active">Lai cao den thap</button>
-      <button id="nameSortBtn">Ten san pham</button>
-      <button id="reloadBtn" class="primary">Tai lai</button>
+      <a class="button" href="/apple-stock/">Tồn kho Apple</a>
+      <button id="filterBtn">Mở bộ lọc</button>
+      <button id="sortBtn" class="active">Lãi cao đến thấp</button>
+      <button id="nameSortBtn">Tên sản phẩm</button>
+      <button id="reloadBtn" class="primary">Tải lại</button>
     </div>
   </div>
   <section class="summary" aria-label="Tong quan">
-    <div class="stat"><div class="stat-label">Cua hang Apple</div><div id="storeCount" class="stat-value">0</div></div>
-    <div class="stat"><div class="stat-label">Lai cao nhat</div><div id="bestProfit" class="stat-value">N/A</div></div>
+    <div class="stat"><div class="stat-label">Cửa hàng Apple</div><div id="storeCount" class="stat-value">0</div></div>
+    <div class="stat"><div class="stat-label">Lãi cao nhất</div><div id="bestProfit" class="stat-value">N/A</div></div>
   </section>
-  <section id="filterPanel" class="filters collapsed" aria-label="Bo loc">
+  <section id="filterPanel" class="filters collapsed" aria-label="Bộ lọc">
     <div class="filter-title">
-      <span>Bo loc hien thi</span>
-      <span id="filterSummary">Tat ca dang hien</span>
+      <span>Bộ lọc hiển thị</span>
+      <span id="filterSummary">Tất cả đang hiển thị</span>
     </div>
     <div class="filter-row" id="kindFilters">
-      <label><input id="stockOnly" type="checkbox"> Chi hien may con hang</label>
+      <label><input id="stockOnly" type="checkbox"> Chỉ hiện máy còn hàng</label>
     </div>
     <div class="filter-row" id="capacityFilters"></div>
     <div class="filter-row" id="colorFilters"></div>
     <div class="filter-row" id="shopFilters"></div>
   </section>
   <section class="mobile-controls" aria-label="Tim nhanh">
-    <input id="quickSearch" class="search-input" type="search" placeholder="Tim nhanh: pro 512 den" autocomplete="off">
+    <input id="quickSearch" class="search-input" type="search" placeholder="Tìm nhanh: pro 512 đen" autocomplete="off">
   </section>
-  <section class="table-wrap" aria-label="Bang bao gia">
+  <section class="table-wrap" aria-label="Bảng báo giá">
     <table>
       <thead><tr id="headRow"></tr></thead>
       <tbody id="bodyRows"></tbody>
     </table>
   </section>
-  <section id="mobileCards" class="mobile-cards" aria-label="Danh sach san pham"></section>
+  <section id="mobileCards" class="mobile-cards" aria-label="Danh sách sản phẩm"></section>
   <div id="errors"></div>
 </main>
 <script src="/shared.js"></script>
@@ -343,7 +343,7 @@ function renderShopCell(cell, row) {
     <div class="quote-cell">
       <div class="quote-price">${yen(buyPrice)}</div>
       ${profit == null ? "" : `<div class="quote-profit ${profitClass(profit)}">${profitLabel(profit)}</div>`}
-      ${delta == null ? "" : `<div class="quote-delta">Bien dong ${money(delta)}</div>`}
+      ${delta == null ? "" : `<div class="quote-delta">Biến động ${money(delta)}</div>`}
       ${renderChangeTime(row, cell)}
     </div>
   `;
@@ -401,7 +401,7 @@ function formatChangeTime(timestamp) {
 function renderChangeTime(row, cell) {
   const changedAt = priceChangedAt(row, cell);
   if (!changedAt) return "";
-  return `<div class="quote-updated">Doi luc ${escapeHtml(formatChangeTime(changedAt))}</div>`;
+  return `<div class="quote-updated">Đổi lúc ${escapeHtml(formatChangeTime(changedAt))}</div>`;
 }
 
 function rowHasStock(row, stores) {
@@ -478,7 +478,7 @@ function stockLocations(row) {
       return column?.label || cell.store || cell.text;
     })
     .filter(Boolean);
-  return locations.length ? locations.join(", ") : "Chua thay cua hang Apple con hang";
+  return locations.length ? locations.join(", ") : "Chưa thấy cửa hàng Apple còn hàng";
 }
 
 function renderOffer(row, offer) {
@@ -502,7 +502,7 @@ function renderMobileCards(rows, shops) {
   const mount = document.getElementById("mobileCards");
   if (!mount) return;
   if (!rows.length) {
-    mount.innerHTML = `<div class="mobile-empty">Khong co san pham phu hop.</div>`;
+    mount.innerHTML = `<div class="mobile-empty">Không có sản phẩm phù hợp.</div>`;
     return;
   }
 
@@ -521,16 +521,16 @@ function renderMobileCards(rows, shops) {
           </div>
           <div>
             <div class="mobile-profit ${profitClass(best?.profit)}">${best?.profit == null ? "N/A" : profitLabel(best.profit)}</div>
-            <div class="mobile-retail">Gia niem yet ${yen(retail)}</div>
+            <div class="mobile-retail">Giá niêm yết ${yen(retail)}</div>
           </div>
         </div>
         <div class="mobile-offers">
-          ${topOffers.map(offer => renderOffer(row, offer)).join("") || `<div class="mobile-empty">Chua co gia shop.</div>`}
+          ${topOffers.map(offer => renderOffer(row, offer)).join("") || `<div class="mobile-empty">Chưa có giá shop.</div>`}
         </div>
-        <div class="mobile-stock">Apple con hang: ${escapeHtml(stockLocations(row))}</div>
+        <div class="mobile-stock">Apple còn hàng: ${escapeHtml(stockLocations(row))}</div>
         ${moreOffers.length ? `
           <details class="mobile-more">
-            <summary>Xem them ${moreOffers.length} shop</summary>
+            <summary>Xem thêm ${moreOffers.length} shop</summary>
             <div class="mobile-offers">${moreOffers.map(offer => renderOffer(row, offer)).join("")}</div>
           </details>
         ` : ""}
@@ -558,7 +558,7 @@ function updateFilterSummary() {
   if (!summary) return;
   const total = document.querySelectorAll("#filterPanel input[type='checkbox']").length;
   const checked = document.querySelectorAll("#filterPanel input[type='checkbox']:checked").length;
-  summary.textContent = `${checked}/${total} dang bat`;
+  summary.textContent = `${checked}/${total} đang bật`;
 }
 
 function capacityClass(value) {
@@ -646,7 +646,7 @@ function setupFilters(data) {
   const kindRoot = document.getElementById("kindFilters");
   const stockOnlyChecked = document.getElementById("stockOnly")?.checked || false;
   const kindValues = [...new Set(products.map(row => row.kind).filter(Boolean))];
-  kindRoot.innerHTML = `<label><input id="stockOnly" type="checkbox" ${stockOnlyChecked ? "checked" : ""}> Chi hien may con hang</label>`;
+  kindRoot.innerHTML = `<label><input id="stockOnly" type="checkbox" ${stockOnlyChecked ? "checked" : ""}> Chỉ hiện máy còn hàng</label>`;
   kindValues.forEach(value => {
     kindRoot.insertAdjacentHTML("beforeend", `<label><input type="checkbox" value="${escapeHtml(value)}" checked> ${escapeHtml(translateVi(value))}</label>`);
   });
@@ -668,13 +668,13 @@ async function load(options = {}) {
     state.data = data;
     state.priceChanges = data.priceChanges || {};
     setupFilters(data);
-    document.getElementById("updated").textContent = `Cap nhat luc ${new Date(data.updatedAt).toLocaleString("vi-VN")} tu is-checker`;
+    document.getElementById("updated").textContent = `Cập nhật lúc ${new Date(data.updatedAt).toLocaleString("vi-VN")} từ is-checker`;
     document.getElementById("storeCount").textContent = data.summary.storeCount;
     document.getElementById("bestProfit").textContent = money(data.summary.bestProfit);
     document.getElementById("errors").innerHTML = "";
     renderTable();
   } catch (error) {
-    document.getElementById("errors").innerHTML = `<div class="error">Khong the lay bang bao gia: ${escapeHtml(error.message)}</div>`;
+    document.getElementById("errors").innerHTML = `<div class="error">Không thể lấy bảng báo giá: ${escapeHtml(error.message)}</div>`;
   } finally {
     reloadBtn.disabled = false;
   }
@@ -686,7 +686,7 @@ document.getElementById("filterBtn").addEventListener("click", () => {
   const button = document.getElementById("filterBtn");
   const collapsed = panel.classList.toggle("collapsed");
   button.classList.toggle("active", !collapsed);
-  button.textContent = collapsed ? "Mo bo loc" : "Bo loc";
+  button.textContent = collapsed ? "Mở bộ lọc" : "Bộ lọc";
 });
 document.getElementById("sortBtn").addEventListener("click", () => {
   setSortMode("profit");

@@ -317,7 +317,7 @@ async function scrapePastec(source) {
   }
 
   if (!products.length) {
-    const fallback = [...bodyText.matchAll(/iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512|1|2)TB?[^\n]{0,120}([\d,]{3,9})円/gi)]
+    const fallback = [...bodyText.matchAll(/iPhone\s*18\s*(?:Pro\s*Max|Pro)\s*(?:128|256|512|1|2)TB?[^\n]{0,120}([\d,]{3,9})円?/gi)]
       .map(match => {
         const inferred = inferProduct(match[0]);
         const price = parseYen(match[1]);
@@ -334,7 +334,7 @@ async function scrapePastec(source) {
 async function scrapeMobileMix(source) {
   const html = await fetchHtml(source.url);
   if (!html.includes('table class="list"')) {
-    throw new Error("Mobile Mix did not return the price table (anti-bot or temporary page)");
+    throw new Error("Mobile Mix không trả về bảng giá (có thể do anti-bot hoặc trang tạm thời)");
   }
   const $ = cheerio.load(html);
   const products = [];
@@ -438,18 +438,18 @@ async function checkPrices({ manual = false } = {}) {
     const lines = changed.slice(0, 10).map(row => {
       const profitLabel = row.profit == null ? "Lợi nhuận: N/A" : `Lợi nhuận: ${row.profit >= 0 ? "+" : ""}¥${row.profit.toLocaleString("ja-JP")}`;
       return [
-        `📉 ${row.model} ${row.storage}`,
-        `Shop: ${row.shop}`,
-        `Mua: ¥${row.buyPrice.toLocaleString("ja-JP")}`,
-        `Apple: ${row.applePrice ? `¥${row.applePrice.toLocaleString("ja-JP")}` : "N/A"}`,
+        `iPhone: ${row.model} ${row.storage}`,
+        `Cửa hàng: ${row.shop}`,
+        `Giá mua: ¥${row.buyPrice.toLocaleString("ja-JP")}`,
+        `Giá Apple: ${row.applePrice ? `¥${row.applePrice.toLocaleString("ja-JP")}` : "N/A"}`,
         profitLabel,
-        `Link: ${row.url}`,
+        `Liên kết: ${row.url}`,
         ""
       ].join("\n");
     });
     await sendDiscord(lines.join("\n"));
   } else if (manual) {
-    await sendDiscord("Checked iPhone 18 kaitori prices. No changes.");
+    await sendDiscord("Đã kiểm tra giá thu mua iPhone 18. Không có thay đổi.");
   }
 
   return { ok: true, rows, errors };
@@ -500,6 +500,55 @@ async function scrapeLivePrices() {
 
 function cleanCellText(value = "") {
   return String(value).replace(/\s+/g, " ").trim();
+}
+
+const VI_LABELS = {
+  "種別": "Loại",
+  "容量": "Dung lượng",
+  "色": "Màu",
+  "定価": "Giá niêm yết",
+  "差益": "Lãi/Lỗ",
+  "バーガンディ": "Đỏ Burgundy",
+  "グレイシャー": "Xanh Glacier",
+  "シルバー": "Bạc",
+  "ブラック": "Đen",
+  "スターホワイト": "Trắng Star",
+  "ナイトスカイ": "Xanh Night Sky",
+  "紫": "Tím",
+  "黒": "Đen",
+  "青": "Xanh",
+  "銀": "Bạc",
+  "白": "Trắng",
+  "森森": "Morimori",
+  "ソムリエ": "Somurie",
+  "エノキン": "Enoking",
+  "アキモバ": "Akimoba",
+  "空間": "Kukan",
+  "モバステ": "Mobaste",
+  "ホムラ": "Homura",
+  "ルデヤ": "Rudeya",
+  "海峡": "Kaikyo",
+  "商店": "Shouten",
+  "一丁目": "1-Chome",
+  "楽園": "Rakuen",
+  "銀座": "Ginza",
+  "丸の内": "Marunouchi",
+  "表参道": "Omotesando",
+  "新宿": "Shinjuku",
+  "渋谷": "Shibuya",
+  "川崎": "Kawasaki",
+  "梅田": "Umeda",
+  "心斎橋": "Shinsaibashi",
+  "京都": "Kyoto",
+  "名古屋": "Nagoya",
+  "福岡": "Fukuoka"
+};
+
+function translateVi(value) {
+  const text = cleanCellText(value);
+  if (!text) return "";
+  if (text.includes("差益")) return "Lãi/Lỗ";
+  return VI_LABELS[text] || text;
 }
 
 function parsePriceNumber(value = "") {
@@ -579,9 +628,9 @@ function stockValue(value = "") {
 
 function stockStatusLabel(value = "") {
   const text = stockValue(value);
-  if (text === "-") return "khong ro";
-  if (text === "×") return "het hang";
-  return "con hang";
+  if (text === "-") return "không rõ";
+  if (text === "×") return "hết hàng";
+  return "còn hàng";
 }
 
 async function withSharedStockChanges(rows) {
@@ -601,8 +650,8 @@ async function withSharedStockChanges(rows) {
         nextChanges[key] = now;
         notifications.push({
           key,
-          product: `${row.kind} ${row.capacity} ${row.color}`.replace(/\s+/g, " ").trim(),
-          store: cell.store,
+          product: `${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
+          store: translateVi(cell.store),
           previous,
           current: value
         });
@@ -631,11 +680,11 @@ async function withSharedStockChanges(rows) {
   if (notifications.length) {
     const lines = notifications.slice(0, 20).map(change => [
       `${change.product}`,
-      `Cua hang: ${change.store}`,
-      `Ton kho: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)} (${stockValue(change.previous)} -> ${stockValue(change.current)})`
+      `Cửa hàng: ${change.store}`,
+      `Tồn kho: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)} (${stockValue(change.previous)} -> ${stockValue(change.current)})`
     ].join("\n"));
-    const more = notifications.length > 20 ? `\n\n...va ${notifications.length - 20} thay doi khac.` : "";
-    await sendDiscord(`Cap nhat ton kho Apple:\n\n${lines.join("\n\n")}${more}`);
+    const more = notifications.length > 20 ? `\n\n...và ${notifications.length - 20} thay đổi khác.` : "";
+    await sendDiscord(`Cập nhật tồn kho Apple:\n\n${lines.join("\n\n")}${more}`);
   }
 
   return nextChanges;

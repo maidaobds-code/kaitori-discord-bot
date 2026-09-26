@@ -1,35 +1,35 @@
 # Kaitori Discord Bot
 
-Dashboard theo doi gia thu mua iPhone 18, so sanh voi gia goc Apple Japan, sap xep tien lai tu cao xuong thap va tu dong cap nhat moi 30 giay.
+Dashboard theo dõi giá thu mua iPhone 18, so sánh với giá gốc Apple Japan, sắp xếp tiền lãi từ cao xuống thấp và tự động cập nhật mỗi 30 giây.
 
-## Chuc nang
+## Chức năng
 
-- Web dashboard tai `http://localhost:3000`
-- Lay nhieu san pham iPhone 18 tu cac trang kaitori trong `sources.json`
-- So sanh `gia thu mua - gia Apple`
-- Sap xep profit tu cao den thap
-- Dashboard uu tien scrape live khi nguoi dung mo trang; Upstash Redis chi la cache tuy chon
-- Gui Discord webhook khi gia thu mua hoac profit thay doi
-- Local cron mac dinh: `*/1 * * * *`
-- Vercel Cron goi `/api/cron/check-prices` moi phut theo `vercel.json`
+- Web dashboard tại `http://localhost:3000`
+- Lấy nhiều sản phẩm iPhone 18 từ các trang kaitori trong `sources.json`
+- So sánh `giá thu mua - giá Apple`
+- Sắp xếp lợi nhuận từ cao đến thấp
+- Dashboard ưu tiên scrape live khi người dùng mở trang; Upstash Redis chỉ là cache tùy chọn
+- Gửi Discord webhook khi giá thu mua hoặc lợi nhuận thay đổi
+- Local cron mặc định: `*/1 * * * *`
+- Vercel Cron gọi `/api/cron/check-prices` mỗi phút theo `vercel.json`
 
-## Cai dat
+## Cài Đặt
 
 ```bash
 npm install
 npm start
 ```
 
-Neu PowerShell chan `npm.ps1`, dung:
+Nếu PowerShell chặn `npm.ps1`, dùng:
 
 ```bash
 npm.cmd install
 npm.cmd start
 ```
 
-## Discord webhook
+## Discord Webhook
 
-Tao file `.env` tu `.env.example`:
+Tạo file `.env` từ `.env.example`:
 
 ```env
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
@@ -42,15 +42,15 @@ STATE_KEY=kaitori:prices
 CRON_SECRET=
 ```
 
-Khong co `DISCORD_WEBHOOK_URL` thi dashboard van chay, chi khong gui thong bao Discord.
+Không có `DISCORD_WEBHOOK_URL` thì dashboard vẫn chạy, chỉ không gửi thông báo Discord.
 
 ## Deploy Vercel
 
-Tren Vercel, khong nen dung `node-cron` va khong the ghi gia vao file JSON vi serverless filesystem read-only/khong ben. App nay da co endpoint `GET /api/cron/check-prices` va `vercel.json` de Vercel Cron goi moi phut.
+Trên Vercel, không nên dùng `node-cron` và không thể ghi giá vào file JSON vì serverless filesystem read-only/không bền. App này đã có endpoint `GET /api/cron/check-prices` và `vercel.json` để Vercel Cron gọi mỗi phút.
 
-Upstash Redis la tuy chon. Neu Redis loi hoac khong cau hinh, dashboard van goi `/api/live-prices` de lay gia moi truc tiep tu cac nguon. Redis chi giup cache state cho cron/webhook.
+Upstash Redis là tùy chọn. Nếu Redis lỗi hoặc không cấu hình, dashboard vẫn gọi `/api/live-prices` để lấy giá mới trực tiếp từ các nguồn. Redis chỉ giúp cache state cho cron/webhook.
 
-Set environment variables tren Vercel:
+Set environment variables trên Vercel:
 
 ```env
 UPSTASH_REDIS_REST_URL=...
@@ -60,15 +60,15 @@ ENABLE_INTERNAL_CRON=false
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 ```
 
-Neu dat `CRON_SECRET`, goi cron thu cong can header `Authorization: Bearer <secret>` hoac query `?token=<secret>`. Luu y: Vercel Cron mac dinh khong gan custom Authorization header, nen chi bat `CRON_SECRET` neu ban dung cron ben ngoai hoac them token vao path cron.
+Nếu đặt `CRON_SECRET`, gọi cron thủ công cần header `Authorization: Bearer <secret>` hoặc query `?token=<secret>`. Lưu ý: Vercel Cron mặc định không gắn custom Authorization header, nên chỉ bật `CRON_SECRET` nếu bạn dùng cron bên ngoài hoặc thêm token vào path cron.
 
-Khi mot nguon loi tam thoi, app giu gia cu cua nguon do va gan co `stale` de dashboard hien "Gia cu - nguon dang loi" thay vi xoa bang gia.
+Khi một nguồn lỗi tạm thời, app giữ giá cũ của nguồn đó và gắn cờ `stale` để dashboard hiện "Giá cũ - nguồn đang lỗi" thay vì xóa bảng giá.
 
-## Cau hinh nguon gia
+## Cấu Hình Nguồn Giá
 
-Sua `sources.json`.
+Sửa `sources.json`.
 
-Nguon Apple co the de dang manual:
+Nguồn Apple có thể để dạng manual:
 
 ```json
 {
@@ -83,7 +83,7 @@ Nguon Apple co the de dang manual:
 }
 ```
 
-Nguon thu mua:
+Nguồn thu mua:
 
 ```json
 {
@@ -95,16 +95,16 @@ Nguon thu mua:
 }
 ```
 
-Parser se tim cac dong co dang `iPhone18 Pro Max 256GB` va gia yen gan do. Cac trang render bang JavaScript/SPA co the can thay URL index bang API URL neu HTML khong co du lieu san pham.
+Parser sẽ tìm các dòng có dạng `iPhone18 Pro Max 256GB` và giá yen gần đó. Các trang render bằng JavaScript/SPA có thể cần thay URL index bằng API URL nếu HTML không có dữ liệu sản phẩm.
 
 ## API
 
-- `GET /api/prices`: du lieu bang profit moi nhat
-- `GET /api/live-prices`: scrape truc tiep va tra gia moi, khong phu thuoc Redis/file
-- `GET /api/sources`: cau hinh nguon
-- `POST /api/check`: kiem tra ngay
-- `GET /api/cron/check-prices`: endpoint cho Vercel Cron/cron ben ngoai
+- `GET /api/prices`: dữ liệu bảng lợi nhuận mới nhất
+- `GET /api/live-prices`: scrape trực tiếp và trả giá mới, không phụ thuộc Redis/file
+- `GET /api/sources`: cấu hình nguồn
+- `POST /api/check`: kiểm tra ngay
+- `GET /api/cron/check-prices`: endpoint cho Vercel Cron/cron bên ngoài
 
-## Luu y
+## Lưu Ý
 
-Gia Apple trong `sources.json` dang la bang cau hinh manual de tranh loi do Apple Shop render theo JavaScript/region. Khi Apple thay gia, cap nhat block `apple-iphone18-manual`.
+Giá Apple trong `sources.json` đang là bảng cấu hình manual để tránh lỗi do Apple Shop render theo JavaScript/region. Khi Apple thay giá, cập nhật block `apple-iphone18-manual`.
