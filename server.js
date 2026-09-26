@@ -651,6 +651,11 @@ function stockStatusLabel(value = "") {
   return "còn hàng";
 }
 
+function hasStock(value = "") {
+  const text = stockValue(value);
+  return Boolean(text && text !== "-" && text !== "×");
+}
+
 async function withSharedStockChanges(rows) {
   const now = Date.now();
   const previousState = loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {}, stockSnapshot: {}, stockChanges: {} });
@@ -666,13 +671,15 @@ async function withSharedStockChanges(rows) {
       nextSnapshot[key] = value;
       if (previous != null && previous !== value) {
         nextChanges[key] = now;
-        notifications.push({
-          key,
-          product: `${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
-          store: translateVi(cell.store),
-          previous,
-          current: value
-        });
+        if (hasStock(value)) {
+          notifications.push({
+            key,
+            product: `${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
+            store: translateVi(cell.store),
+            previous,
+            current: value
+          });
+        }
       }
     });
   });
