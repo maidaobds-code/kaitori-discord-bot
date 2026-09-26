@@ -58,9 +58,15 @@
     button.active { border-color: var(--accent); background: #dff7ef; color: #064e3b; }
     button:disabled { opacity: .65; cursor: wait; }
     .summary { display: grid; grid-template-columns: minmax(150px, 260px); gap: 8px; margin-bottom: 10px; }
-    .stat { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 12px; }
-    .stat-label { color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; }
-    .stat-value { margin-top: 2px; font-size: 18px; font-weight: 850; }
+    .stat {
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      background: #dcfce7;
+      padding: 10px 12px;
+      box-shadow: inset 0 0 0 1px #bbf7d0;
+    }
+    .stat-label { color: #166534; font-size: 12px; font-weight: 850; text-transform: uppercase; }
+    .stat-value { margin-top: 2px; color: #047857; font-size: 20px; font-weight: 950; }
     .filters { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 8px; margin-bottom: 10px; }
     .filters.collapsed { display: none; }
     .filter-title {
@@ -151,10 +157,7 @@
       width: 76px;
       min-width: 76px;
       max-width: 76px;
-      background: #fef3c7 !important;
-      color: #7c2d12;
       font-weight: 950;
-      box-shadow: inset 0 0 0 2px #f59e0b, 1px 0 0 var(--line);
     }
     .kind-max { background: #fee2e2; font-weight: 850; }
     .kind-pro { background: #dbeafe; font-weight: 850; }
@@ -196,11 +199,6 @@
     .mobile-sub {
       display: inline-flex;
       width: fit-content;
-      border: 1px solid #f59e0b;
-      border-radius: 999px;
-      padding: 2px 8px;
-      background: #fef3c7;
-      color: #7c2d12;
       font-size: 12px;
       font-weight: 900;
     }
@@ -325,6 +323,24 @@ function displayCellText(cell, index) {
   return cell.text;
 }
 
+function productColorText(value) {
+  return translateVi(value).toLowerCase();
+}
+
+function productColorStyle(value) {
+  const text = productColorText(value);
+  let color = "#334155";
+  if (text.includes("đen")) color = "#111827";
+  else if (text.includes("bạc")) color = "#64748b";
+  else if (text.includes("trắng")) color = "#6b7280";
+  else if (text.includes("đỏ") || text.includes("burgundy")) color = "#9f1239";
+  else if (text.includes("xanh glacier")) color = "#0e7490";
+  else if (text.includes("xanh night")) color = "#1e3a8a";
+  else if (text.includes("xanh")) color = "#0369a1";
+  else if (text.includes("tím")) color = "#7e22ce";
+  return `color: ${color}`;
+}
+
 function removeLegacyResetButton() {
   document.querySelectorAll("button").forEach(button => {
     if (button.id === "resetBtn" || button.textContent.trim().toLowerCase() === "reset loc") {
@@ -334,6 +350,9 @@ function removeLegacyResetButton() {
 }
 
 function plainCellHtml(cell, index) {
+  if (index === 2) {
+    return `<span style="${productColorStyle(cell.text)}">${escapeHtml(displayCellText(cell, index))}</span>`;
+  }
   return escapeHtml(displayCellText(cell, index));
 }
 
@@ -534,7 +553,7 @@ function renderMobileCards(rows, shops) {
         <div class="mobile-card-head">
           <div class="mobile-title">
             <div class="mobile-name">${escapeHtml(translateVi(row.kind))} ${escapeHtml(row.capacity)}</div>
-            <div class="mobile-sub">${escapeHtml(translateVi(row.color))}</div>
+            <div class="mobile-sub" style="${productColorStyle(row.color)}">${escapeHtml(translateVi(row.color))}</div>
           </div>
           <div>
             <div class="mobile-profit ${profitClass(best?.profit)}">${best?.profit == null ? "N/A" : profitLabel(best.profit)}</div>
