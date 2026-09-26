@@ -529,6 +529,10 @@ function isCheckerPriceKey(row, cell) {
   return [row.kind, row.capacity, row.color, cell.shop].map(value => String(value || "").trim()).join("|");
 }
 
+function isCheckerStockKey(row, cell) {
+  return [row.kind, row.capacity, row.color, cell.store].map(value => String(value || "").trim()).join("|");
+}
+
 function withSharedPriceChanges(rows) {
   const now = Date.now();
   const previousState = loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {} });
@@ -555,13 +559,83 @@ function withSharedPriceChanges(rows) {
   });
 
   try {
+    const latestState = loadJSON(IS_CHECKER_STATE_FILE, {});
     saveJSON(IS_CHECKER_STATE_FILE, {
+      ...latestState,
       updatedAt: new Date(now).toISOString(),
       snapshot: nextSnapshot,
       changes: nextChanges
     });
   } catch (error) {
     console.warn(`Could not save is-checker price state: ${error?.message || error}`);
+  }
+
+  return nextChanges;
+}
+
+function stockValue(value = "") {
+  return String(value || "").replace(/\s+/g, " ").trim() || "-";
+}
+
+function stockStatusLabel(value = "") {
+  const text = stockValue(value);
+  if (text === "-") return "khong ro";
+  if (text === "×") return "het hang";
+  return "con hang";
+}
+
+async function withSharedStockChanges(rows) {
+  const now = Date.now();
+  const previousState = loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {}, stockSnapshot: {}, stockChanges: {} });
+  const nextSnapshot = {};
+  const nextChanges = { ...(previousState.stockChanges || {}) };
+  const notifications = [];
+
+  rows.filter(row => !row.isUpdateRow).forEach(row => {
+    row.cells.filter(cell => cell.store).forEach(cell => {
+      const value = stockValue(cell.text);
+      const key = isCheckerStockKey(row, cell);
+      const previous = previousState.stockSnapshot?.[key];
+      nextSnapshot[key] = value;
+      if (previous != null && previous !== value) {
+        nextChanges[key] = now;
+        notifications.push({
+          key,
+          product: `${row.kind} ${row.capacity} ${row.color}`.replace(/\s+/g, " ").trim(),
+          store: cell.store,
+          previous,
+          current: value
+        });
+      }
+    });
+  });
+
+  Object.keys(nextChanges).forEach(key => {
+    if (nextSnapshot[key] == null || now - Number(nextChanges[key]) > PRICE_CHANGE_TTL_MS) {
+      delete nextChanges[key];
+    }
+  });
+
+  try {
+    const latestState = loadJSON(IS_CHECKER_STATE_FILE, {});
+    saveJSON(IS_CHECKER_STATE_FILE, {
+      ...latestState,
+      updatedAt: new Date(now).toISOString(),
+      stockSnapshot: nextSnapshot,
+      stockChanges: nextChanges
+    });
+  } catch (error) {
+    console.warn(`Could not save is-checker stock state: ${error?.message || error}`);
+  }
+
+  if (notifications.length) {
+    const lines = notifications.slice(0, 20).map(change => [
+      `${change.product}`,
+      `Cua hang: ${change.store}`,
+      `Ton kho: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)} (${stockValue(change.previous)} -> ${stockValue(change.current)})`
+    ].join("\n"));
+    const more = notifications.length > 20 ? `\n\n...va ${notifications.length - 20} thay doi khac.` : "";
+    await sendDiscord(`Cap nhat ton kho Apple:\n\n${lines.join("\n\n")}${more}`);
   }
 
   return nextChanges;
@@ -629,6 +703,7 @@ async function scrapeIsChecker() {
 
   const dataRows = rows.filter(row => !row.isUpdateRow);
   const priceChanges = withSharedPriceChanges(rows);
+  const stockChanges = await withSharedStockChanges(rows);
   const bestProfit = dataRows.reduce((best, row) => {
     const rawProfit = row.cells[4]?.text || "";
     const profitMatch = rawProfit.replace(/,/g, "").match(/[+-]\d+/);
@@ -651,6 +726,7 @@ async function scrapeIsChecker() {
     columns,
     rows,
     priceChanges,
+    stockChanges,
     summary: {
       rowCount: dataRows.length,
       shopCount: columns.filter(column => column.shop).length,
@@ -675,6 +751,7 @@ app.get("/api/is-checker", async (req, res) => {
       columns: [],
       rows: [],
       priceChanges: {},
+      stockChanges: {},
       summary: { rowCount: 0, shopCount: 0, storeCount: 0, bestProfit: null },
       errors: [{ error: error?.message || String(error) }]
     });

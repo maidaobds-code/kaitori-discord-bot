@@ -17,6 +17,8 @@
       --stock-bg: #dcfce7;
       --none: #b42318;
       --none-bg: #fee4e2;
+      --warn: #a15c07;
+      --warn-bg: #fff7d6;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     }
     * { box-sizing: border-box; }
@@ -41,6 +43,7 @@
     a.button, button {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       min-height: 36px;
       border: 1px solid #b8c9c6;
       border-radius: 8px;
@@ -50,6 +53,7 @@
       font-weight: 750;
       text-decoration: none;
       cursor: pointer;
+      touch-action: manipulation;
     }
     button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
     .panel {
@@ -58,6 +62,34 @@
       border-radius: 8px;
       background: var(--surface);
       overflow: hidden;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fbfb;
+    }
+    .stat {
+      min-height: 56px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: var(--surface);
+    }
+    .stat-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+    }
+    .stat-value {
+      margin-top: 2px;
+      color: var(--text);
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
     }
     .filters {
       display: flex;
@@ -96,13 +128,125 @@
     .has-stock { background: var(--stock-bg); color: var(--stock); }
     .no-stock { background: var(--none-bg); color: var(--none); }
     .unknown { background: #eef2f2; color: #5f746f; }
+    .changed { box-shadow: inset 0 0 0 2px var(--warn); background: var(--warn-bg); }
+    .mobile-list { display: none; }
+    .stock-card {
+      border-bottom: 1px solid var(--line);
+      padding: 12px;
+      background: var(--surface);
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .card-title {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .card-name {
+      font-size: 15px;
+      line-height: 1.25;
+      font-weight: 850;
+    }
+    .card-sub {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      font-weight: 650;
+    }
+    .card-count {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      padding: 5px 9px;
+      background: var(--stock-bg);
+      color: var(--stock);
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .stock-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .store-status {
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .store-status.has-stock { border-color: #a7f3d0; }
+    .store-status.no-stock { border-color: #fecaca; }
+    .store-status.unknown { border-color: #d9e2e0; }
+    .store-name {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      color: #24433d;
+      font-size: 12px;
+      line-height: 1.25;
+      font-weight: 750;
+    }
+    .status-mark {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 900;
+      background: rgba(255, 255, 255, .64);
+    }
     .empty, .error { padding: 14px; color: var(--muted); font-weight: 650; }
     .error { color: #9f1239; background: #fff1f2; }
     @media (max-width: 720px) {
-      .app { padding: 10px; }
-      .topbar { align-items: flex-start; }
-      th:first-child, td:first-child { min-width: 170px; }
-      .stock-cell { min-width: 58px; padding: 7px 4px; }
+      body { background: #eef5f3; }
+      .app { padding: 10px 10px calc(18px + env(safe-area-inset-bottom)); }
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px 0;
+      }
+      h1 { font-size: 21px; }
+      .meta { font-size: 12px; }
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+      }
+      a.button, button {
+        min-height: 44px;
+        padding: 0 14px;
+      }
+      .panel { margin-top: 10px; border-radius: 8px; }
+      .summary { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 8px; }
+      .stat { min-height: 54px; padding: 7px; }
+      .stat-value { font-size: 16px; }
+      .filters {
+        position: sticky;
+        top: 104px;
+        z-index: 5;
+        padding: 8px;
+        background: rgba(255, 255, 255, .96);
+        backdrop-filter: blur(12px);
+      }
+      label { min-height: 36px; padding: 0 12px; font-size: 13px; }
+      .table-scroll { display: none; }
+      .mobile-list { display: block; }
+      .stock-grid { grid-template-columns: 1fr; }
+    }
+    @media (min-width: 390px) and (max-width: 720px) {
+      .stock-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
   </style>
 </head>
@@ -120,6 +264,7 @@
   </div>
 
   <section class="panel">
+    <div class="summary" id="stockSummary" aria-live="polite"></div>
     <div class="filters" id="kindFilters"></div>
     <div id="tableMount"></div>
   </section>
@@ -146,13 +291,15 @@ function render() {
   const kinds = checkedSet("kindFilters");
   const products = data.rows.filter(row => !row.isUpdateRow && kinds.has(row.kind));
   const mount = document.getElementById("tableMount");
+  renderSummary(data, products, stores);
 
   if (!stores.length || !products.length) {
     mount.innerHTML = `<div class="empty">Khong co du lieu ton kho.</div>`;
     return;
   }
 
-  let html = `
+  let tableHtml = `
+    <div class="table-scroll">
     <table class="stock-table">
       <thead>
         <tr>
@@ -164,7 +311,7 @@ function render() {
   `;
 
   products.forEach(row => {
-    html += `
+    tableHtml += `
       <tr>
         <td>
           <div class="product">
@@ -176,13 +323,80 @@ function render() {
     stores.forEach(store => {
       const cell = row.cells.find(item => item.store === store.store);
       const text = stockText(cell?.text);
-      html += `<td class="stock-cell ${stockClass(text)}">${escapeHtml(text)}</td>`;
+      tableHtml += `<td class="stock-cell ${stockClass(text)} ${changedClass(data, row, cell)}">${escapeHtml(text)}</td>`;
     });
-    html += `</tr>`;
+    tableHtml += `</tr>`;
   });
 
-  html += `</tbody></table>`;
-  mount.innerHTML = html;
+  tableHtml += `</tbody></table></div>`;
+  mount.innerHTML = tableHtml + renderMobileCards(data, products, stores);
+}
+
+function renderSummary(data, products, stores) {
+  const totalCells = products.length * stores.length;
+  const stocked = products.reduce((count, row) => count + stores.filter(store => {
+    const text = stockText(row.cells.find(item => item.store === store.store)?.text);
+    return stockClass(text) === "has-stock";
+  }).length, 0);
+  const changed = Object.keys(data.stockChanges || {}).length;
+  document.getElementById("stockSummary").innerHTML = `
+    <div class="stat">
+      <div class="stat-label">San pham</div>
+      <div class="stat-value">${products.length}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Con hang</div>
+      <div class="stat-value">${stocked}/${totalCells}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Moi doi</div>
+      <div class="stat-value">${changed}</div>
+    </div>
+  `;
+}
+
+function renderMobileCards(data, products, stores) {
+  const cards = products.map(row => {
+    const cells = stores.map(store => {
+      const cell = row.cells.find(item => item.store === store.store);
+      const text = stockText(cell?.text);
+      return { store, cell, text, className: stockClass(text) };
+    });
+    const stocked = cells.filter(item => item.className === "has-stock").length;
+    return `
+      <article class="stock-card">
+        <div class="card-head">
+          <div class="card-title">
+            <div class="card-name">${escapeHtml(translateVi(row.kind))} ${escapeHtml(row.capacity)}</div>
+            <div class="card-sub">${escapeHtml(translateVi(row.color))}</div>
+          </div>
+          <div class="card-count">${stocked}/${stores.length}</div>
+        </div>
+        <div class="stock-grid">
+          ${cells.map(item => `
+            <div class="store-status ${item.className} ${changedClass(data, row, item.cell)}">
+              <span class="store-name">${escapeHtml(item.store.label || item.store.store)}</span>
+              <span class="status-mark" aria-label="${escapeHtml(statusLabel(item.text))}">${escapeHtml(item.text)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </article>
+    `;
+  }).join("");
+  return `<div class="mobile-list">${cards}</div>`;
+}
+
+function changedClass(data, row, cell) {
+  if (!cell?.store) return "";
+  const key = [row.kind, row.capacity, row.color, cell.store].map(value => String(value || "").trim()).join("|");
+  return data.stockChanges?.[key] ? "changed" : "";
+}
+
+function statusLabel(text) {
+  const value = String(text || "").trim();
+  if (!value || value === "-") return "Chua ro";
+  if (value === "×") return "Het hang";
+  return "Con hang";
 }
 
 async function load(options = {}) {
