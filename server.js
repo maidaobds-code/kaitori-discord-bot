@@ -400,7 +400,12 @@ function buildComparison(scraped, previousRows = []) {
 async function sendDiscord(message, embeds = []) {
   const url = process.env.DISCORD_WEBHOOK_URL;
   if (!url) return;
-  await axios.post(url, { content: message, embeds, allowed_mentions: { parse: [] } });
+  const content = [
+    "🔔🔔🔔 THÔNG BÁO CẬP NHẬT 🔔🔔🔔",
+    message,
+    "✅✅✅ KẾT THÚC THÔNG BÁO ✅✅✅"
+  ].join("\n");
+  await axios.post(url, { content, embeds, allowed_mentions: { parse: [] } });
 }
 
 function formatDiscordTime(date = new Date()) {
