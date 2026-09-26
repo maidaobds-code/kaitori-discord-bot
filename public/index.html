@@ -57,7 +57,7 @@
     button.primary { border-color: var(--accent); background: var(--accent); color: white; }
     button.active { border-color: var(--accent); background: #dff7ef; color: #064e3b; }
     button:disabled { opacity: .65; cursor: wait; }
-    .summary { display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px; }
+    .summary { display: grid; grid-template-columns: minmax(150px, 260px); gap: 8px; margin-bottom: 10px; }
     .stat { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 12px; }
     .stat-label { color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; }
     .stat-value { margin-top: 2px; font-size: 18px; font-weight: 850; }
@@ -106,7 +106,7 @@
     th.shop { background: #fff3d8; min-width: 112px; color: #5f3b05; }
     th.store { background: #e0f2fe; min-width: 30px; color: #075985; }
     th.capacity, td.capacity { text-align: center; font-weight: 850; }
-    th.color, td.color { width: 44px; min-width: 44px; max-width: 44px; text-align: center; padding-left: 4px; padding-right: 4px; }
+    th.color, td.color { width: 76px; min-width: 76px; max-width: 76px; text-align: center; padding-left: 6px; padding-right: 6px; }
     td.price { text-align: right; min-width: 112px; padding: 6px; }
     td.stock { text-align: center; min-width: 30px; }
     td.best { background: var(--best) !important; box-shadow: inset 0 0 0 2px #f2c94c; }
@@ -147,7 +147,15 @@
     .sticky-1 { left: 0; min-width: 54px; }
     .sticky-2 { left: 54px; min-width: 54px; }
     .sticky-3 { left: 108px; min-width: 96px; }
-    .sticky-3.color { width: 44px; min-width: 44px; max-width: 44px; }
+    .sticky-3.color {
+      width: 76px;
+      min-width: 76px;
+      max-width: 76px;
+      background: #fef3c7 !important;
+      color: #7c2d12;
+      font-weight: 950;
+      box-shadow: inset 0 0 0 2px #f59e0b, 1px 0 0 var(--line);
+    }
     .kind-max { background: #fee2e2; font-weight: 850; }
     .kind-pro { background: #dbeafe; font-weight: 850; }
     .kind-air { background: #dcfce7; font-weight: 850; }
@@ -185,7 +193,17 @@
     }
     .mobile-title { display: grid; gap: 2px; min-width: 0; }
     .mobile-name { font-size: 15px; font-weight: 850; }
-    .mobile-sub { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .mobile-sub {
+      display: inline-flex;
+      width: fit-content;
+      border: 1px solid #f59e0b;
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: #fef3c7;
+      color: #7c2d12;
+      font-size: 12px;
+      font-weight: 900;
+    }
     .mobile-profit { text-align: right; font-size: 16px; font-weight: 900; white-space: nowrap; }
     .mobile-retail { color: var(--muted); font-size: 11px; font-weight: 700; text-align: right; }
     .mobile-offers { display: grid; gap: 6px; padding: 8px; }
@@ -236,7 +254,7 @@
       .topbar { margin: -10px -10px 10px; align-items: flex-start; position: static; flex-direction: column; }
       .actions { width: 100%; overflow-x: auto; padding-bottom: 2px; }
       .actions button, .actions .button { flex: 0 0 auto; }
-      .summary { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+      .summary { grid-template-columns: minmax(0, 1fr); }
       .filters { position: sticky; top: 0; z-index: 12; max-height: 52vh; overflow: auto; }
       .filter-row { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
       .filter-row label { flex: 0 0 auto; min-height: 34px; }
@@ -261,8 +279,7 @@
       <button id="reloadBtn" class="primary">Tải lại</button>
     </div>
   </div>
-  <section class="summary" aria-label="Tong quan">
-    <div class="stat"><div class="stat-label">Cửa hàng Apple</div><div id="storeCount" class="stat-value">0</div></div>
+  <section class="summary" aria-label="Tổng quan">
     <div class="stat"><div class="stat-label">Lãi cao nhất</div><div id="bestProfit" class="stat-value">N/A</div></div>
   </section>
   <section id="filterPanel" class="filters collapsed" aria-label="Bộ lọc">
@@ -669,7 +686,6 @@ async function load(options = {}) {
     state.priceChanges = data.priceChanges || {};
     setupFilters(data);
     document.getElementById("updated").textContent = `Cập nhật lúc ${new Date(data.updatedAt).toLocaleString("vi-VN")} từ is-checker`;
-    document.getElementById("storeCount").textContent = data.summary.storeCount;
     document.getElementById("bestProfit").textContent = money(data.summary.bestProfit);
     document.getElementById("errors").innerHTML = "";
     renderTable();
