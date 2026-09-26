@@ -403,6 +403,18 @@ async function sendDiscord(message, embeds = []) {
   await axios.post(url, { content: message, embeds, allowed_mentions: { parse: [] } });
 }
 
+function formatDiscordTime(date = new Date()) {
+  return date.toLocaleString("vi-VN", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+}
+
 async function checkPrices({ manual = false } = {}) {
   const config = loadJSON(SOURCES_FILE, { sources: [] });
   const sources = (Array.isArray(config) ? config : config.sources || []).filter(s => s.enabled);
@@ -425,8 +437,9 @@ async function checkPrices({ manual = false } = {}) {
     }
   }
 
+  const checkedAt = new Date();
   const rows = buildComparison(scraped, previous.rows || []);
-  const state = { rows, updatedAt: new Date().toISOString(), errors };
+  const state = { rows, updatedAt: checkedAt.toISOString(), errors };
   saveJSON(DATA_FILE, state);
 
   const changed = rows.filter(row =>
@@ -447,9 +460,9 @@ async function checkPrices({ manual = false } = {}) {
         ""
       ].join("\n");
     });
-    await sendDiscord(lines.join("\n"));
+    await sendDiscord(`Thời gian cập nhật: ${formatDiscordTime(checkedAt)}\n\n${lines.join("\n")}`);
   } else if (manual) {
-    await sendDiscord("Đã kiểm tra giá thu mua iPhone 18. Không có thay đổi.");
+    await sendDiscord(`Đã kiểm tra giá thu mua iPhone 18. Không có thay đổi.\nThời gian cập nhật: ${formatDiscordTime(checkedAt)}`);
   }
 
   return { ok: true, rows, errors };
@@ -684,7 +697,7 @@ async function withSharedStockChanges(rows) {
       `Tồn kho: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)} (${stockValue(change.previous)} -> ${stockValue(change.current)})`
     ].join("\n"));
     const more = notifications.length > 20 ? `\n\n...và ${notifications.length - 20} thay đổi khác.` : "";
-    await sendDiscord(`Cập nhật tồn kho Apple:\n\n${lines.join("\n\n")}${more}`);
+    await sendDiscord(`Cập nhật tồn kho Apple:\nThời gian cập nhật: ${formatDiscordTime(new Date(now))}\n\n${lines.join("\n\n")}${more}`);
   }
 
   return nextChanges;
