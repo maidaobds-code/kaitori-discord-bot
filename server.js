@@ -569,6 +569,13 @@ function translateVi(value) {
   return VI_LABELS[text] || text;
 }
 
+function bilingualLabel(value) {
+  const original = cleanCellText(value);
+  const translated = translateVi(original);
+  if (!original || translated === original) return translated;
+  return `${translated} (${original})`;
+}
+
 function parsePriceNumber(value = "") {
   const match = String(value).replace(/,/g, "").match(/\d{4,9}/);
   if (!match) return null;
@@ -675,7 +682,7 @@ async function withSharedStockChanges(rows) {
           notifications.push({
             key,
             product: `${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
-            store: translateVi(cell.store),
+            store: cell.store,
             previous,
             current: value
           });
@@ -705,7 +712,7 @@ async function withSharedStockChanges(rows) {
   if (notifications.length) {
     const lines = notifications.slice(0, 20).map(change => [
       `${change.product}`,
-      `Cửa hàng: ${change.store}`,
+      `Cửa hàng: ${bilingualLabel(change.store)}`,
       `Tồn kho: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)} (${stockValue(change.previous)} -> ${stockValue(change.current)})`
     ].join("\n"));
     const more = notifications.length > 20 ? `\n\n...và ${notifications.length - 20} thay đổi khác.` : "";
