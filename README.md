@@ -97,6 +97,15 @@ Nguồn thu mua:
 
 Parser sẽ tìm các dòng có dạng `iPhone18 Pro Max 256GB` và giá yen gần đó. Các trang render bằng JavaScript/SPA có thể cần thay URL index bằng API URL nếu HTML không có dữ liệu sản phẩm.
 
+## Apple Stock Discord
+
+Trang `https://www.apple.com/jp/app-store/` la trang gioi thieu App Store, khong co ton kho iPhone/Mac. Bot dang lay bang ton kho tu `IS_CHECKER_URL` va gui Discord khi mot cua hang doi sang trang thai con hang.
+
+- Local cron: `STOCK_CHECK_CRON=*/1 * * * *`
+- Kiem tra thu cong: `POST /api/check-apple-stock`
+- Cron endpoint cho hosting ngoai/Vercel: `GET /api/cron/check-apple-stock`
+- Webhook su dung chung bien `DISCORD_WEBHOOK_URL`
+
 ## API
 
 - `GET /api/prices`: dữ liệu bảng lợi nhuận mới nhất

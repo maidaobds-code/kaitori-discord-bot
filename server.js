@@ -17,6 +17,7 @@ const PORT = Number(process.env.PORT || 3000);
 const DATA_FILE = path.join(__dirname, "data", "prices.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
+const STOCK_CHECK_CRON = process.env.STOCK_CHECK_CRON || CHECK_CRON;
 const IS_CHECKER_URL = process.env.IS_CHECKER_URL || "https://is-checker.com/iphone18_beta.html";
 const IS_CHECKER_CACHE_MS = Number(process.env.IS_CHECKER_CACHE_MS || 30000);
 const IS_SERVERLESS_READONLY = __dirname.startsWith("/var/task") || Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
@@ -24,6 +25,7 @@ const WRITABLE_STATE_DIR = process.env.WRITABLE_STATE_DIR || (IS_SERVERLESS_READ
 const IS_CHECKER_STATE_FILE = process.env.IS_CHECKER_STATE_FILE || path.join(WRITABLE_STATE_DIR, "is-checker-price-state.json");
 const PRICE_CHANGE_TTL_MS = 3 * 60 * 60 * 1000;
 let runningCheck = null;
+let runningStockCheck = null;
 let isCheckerCache = null;
 
 app.use(express.json());
@@ -817,6 +819,23 @@ async function scrapeIsChecker() {
   };
 }
 
+async function checkAppleStock({ manual = false } = {}) {
+  const data = await scrapeIsChecker();
+  if (manual && !Object.keys(data.stockChanges || {}).length) {
+    await sendDiscord(`Đã kiểm tra tồn kho Apple. Không có thay đổi mới.\nThời gian cập nhật: ${formatDiscordTime(new Date(data.updatedAt))}`);
+  }
+  return data;
+}
+
+function runStockCheck(options = {}) {
+  if (!runningStockCheck) {
+    runningStockCheck = checkAppleStock(options).finally(() => {
+      runningStockCheck = null;
+    });
+  }
+  return runningStockCheck;
+}
+
 app.get("/api/is-checker", async (req, res) => {
   try {
     const now = Date.now();
@@ -877,12 +896,41 @@ app.post("/api/check", async (req, res) => {
   }
 });
 
+app.all("/api/check-apple-stock", async (req, res) => {
+  try {
+    res.json(await runStockCheck({ manual: true }));
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+app.all("/api/cron/check-prices", async (req, res) => {
+  try {
+    res.json(await runPriceCheck());
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+app.all("/api/cron/check-apple-stock", async (req, res) => {
+  try {
+    res.json(await runStockCheck());
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
 if (!process.env.VERCEL) {
   cron.schedule(CHECK_CRON, () => {
     runPriceCheck().catch(err => console.error("Cron check error:", err));
   });
 
+  cron.schedule(STOCK_CHECK_CRON, () => {
+    runStockCheck().catch(err => console.error("Stock cron check error:", err));
+  });
+
   runPriceCheck().catch(err => console.error("Initial check error:", err));
+  runStockCheck().catch(err => console.error("Initial stock check error:", err));
 
   app.listen(PORT, () => {
     console.log(`Kaitori bot running: http://localhost:${PORT}`);
