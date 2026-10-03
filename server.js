@@ -578,6 +578,27 @@ function bilingualLabel(value) {
   return `${translated} (${original})`;
 }
 
+const APPLE_STORE_LABELS = {
+  Ginza: { kanji: "銀座", region: "Kanto" },
+  Marunouchi: { kanji: "丸の内", region: "Kanto" },
+  Omotesando: { kanji: "表参道", region: "Kanto" },
+  Shinjuku: { kanji: "新宿", region: "Kanto" },
+  Shibuya: { kanji: "渋谷", region: "Kanto" },
+  Kawasaki: { kanji: "川崎", region: "Kanto" },
+  Umeda: { kanji: "梅田", region: "Kansai" },
+  Shinsaibashi: { kanji: "心斎橋", region: "Kansai" },
+  Kyoto: { kanji: "京都", region: "Kansai" },
+  Nagoya: { kanji: "名古屋", region: "Chubu" },
+  Fukuoka: { kanji: "福岡", region: "Kyushu" }
+};
+
+function appleStoreLabel(value) {
+  const english = translateVi(value);
+  const store = APPLE_STORE_LABELS[english];
+  if (!store) return bilingualLabel(value);
+  return `${english} ${store.kanji} (${store.region})`;
+}
+
 function parsePriceNumber(value = "") {
   const match = String(value).replace(/,/g, "").match(/\d{4,9}/);
   if (!match) return null;
@@ -743,7 +764,7 @@ async function withSharedStockChanges(rows) {
   if (notifications.length) {
     const lines = notifications.slice(0, 20).map(change => [
       `${change.product}`,
-      `Cửa hàng: ${bilingualLabel(change.store)}`,
+      `Cửa hàng: ${appleStoreLabel(change.store)}`,
       `Tồn kho: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)} (${stockValue(change.previous)} -> ${stockValue(change.current)})`
     ].join("\n"));
     const more = notifications.length > 20 ? `\n\n...và ${notifications.length - 20} thay đổi khác.` : "";
@@ -754,7 +775,7 @@ async function withSharedStockChanges(rows) {
     if (forwarded.length) {
       const forwardLines = forwarded.slice(0, 20).map(change => [
         `${change.product}`,
-        `Cửa hàng: ${bilingualLabel(change.store)}`,
+        `Cửa hàng: ${appleStoreLabel(change.store)}`,
         `Tồn kho: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)} (${stockValue(change.previous)} -> ${stockValue(change.current)})`
       ].join("\n"));
       const forwardMore = forwarded.length > 20 ? `\n\n...và ${forwarded.length - 20} thay đổi khác.` : "";
