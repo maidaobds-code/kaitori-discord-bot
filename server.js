@@ -19,6 +19,9 @@ const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
 const STOCK_CHECK_CRON = process.env.STOCK_CHECK_CRON || CHECK_CRON;
 const IS_CHECKER_URL = process.env.IS_CHECKER_URL || "https://is-checker.com/iphone18_beta.html";
+const APPLE_IPHONE_URL = process.env.APPLE_IPHONE_URL || "https://www.apple.com/jp/shop/buy-iphone/iphone-18-pro";
+const APPLE_PICKUP_URL = process.env.APPLE_PICKUP_URL || "https://www.apple.com/jp/shop/retail/pickup-message";
+const APPLE_STOCK_SOURCE = process.env.APPLE_STOCK_SOURCE || "apple";
 const IS_CHECKER_CACHE_MS = Number(process.env.IS_CHECKER_CACHE_MS || 30000);
 const IS_SERVERLESS_READONLY = __dirname.startsWith("/var/task") || Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const WRITABLE_STATE_DIR = process.env.WRITABLE_STATE_DIR || (IS_SERVERLESS_READONLY ? "/tmp" : path.join(__dirname, "data"));
@@ -593,11 +596,198 @@ const APPLE_STORE_LABELS = {
 };
 
 function appleStoreLabel(value) {
+  const originalKey = cleanCellText(value).toLowerCase();
   const english = translateVi(value);
-  const storeKey = cleanCellText(english).toLowerCase();
-  const store = APPLE_STORE_LABELS[storeKey];
+  const translatedKey = cleanCellText(english).toLowerCase();
+  const store = APPLE_STORE_LABELS[originalKey] || APPLE_STORE_LABELS[translatedKey];
   if (!store) return bilingualLabel(value);
   return `${store.name} ${store.kanji} (${store.region})`;
+}
+
+const APPLE_DIRECT_STORES = [
+  { id: "R079", key: "ginza", label: "Ginza 銀座 (Kanto)" },
+  { id: "R718", key: "marunouchi", label: "Marunouchi 丸の内 (Kanto)" },
+  { id: "R224", key: "omotesando", label: "Omotesando 表参道 (Kanto)" },
+  { id: "R128", key: "shinjuku", label: "Shinjuku 新宿 (Kanto)" },
+  { id: "R119", key: "shibuya", label: "Shibuya 渋谷 (Kanto)" },
+  { id: "R710", key: "kawasaki", label: "Kawasaki 川崎 (Kanto)" },
+  { id: "R768", key: "umeda", label: "Umeda 梅田 (Kansai)" },
+  { id: "R091", key: "shinsaibashi", label: "Shinsaibashi 心斎橋 (Kansai)" },
+  { id: "R711", key: "kyoto", label: "Kyoto 京都 (Kansai)" },
+  { id: "R005", key: "nagoya", label: "Nagoya 名古屋 (Chubu)" },
+  { id: "R048", key: "fukuoka", label: "Fukuoka 福岡 (Kyushu)" }
+];
+
+const APPLE_DIRECT_ANCHOR_STORES = ["R079", "R768", "R005", "R048"];
+const APPLE_DIRECT_CHUNK_SIZE = Number(process.env.APPLE_DIRECT_CHUNK_SIZE || 3);
+const APPLE_DIRECT_REQUEST_DELAY_MS = Number(process.env.APPLE_DIRECT_REQUEST_DELAY_MS || 700);
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
+function parseAppleProductName(product = {}) {
+  const name = cleanCellText(product.name).replace(/\u00a0/g, " ");
+  const match = name.match(/^iPhone\s+18\s+(Pro Max|Pro)\s+(\d+(?:GB|TB))\s+(.+)$/i);
+  if (!match) return null;
+  return {
+    partNumber: product.partNumber,
+    kind: match[1],
+    capacity: match[2],
+    color: match[3],
+    name
+  };
+}
+
+function appleColorVi(color) {
+  return {
+    Burgundy: "Đỏ Burgundy",
+    Glacier: "Xanh Glacier",
+    Silver: "Bạc",
+    Black: "Đen"
+  }[color] || color;
+}
+
+function matchesAppleDirectProduct(product) {
+  const tokens = stockForwardTokens();
+  if (!tokens.length) return true;
+  const haystack = normalizeMatchText([
+    product.name,
+    product.kind,
+    product.capacity,
+    product.color,
+    appleColorVi(product.color)
+  ].filter(Boolean).join(" "));
+  return tokens.every(token => haystack.includes(token));
+}
+
+function appleStockText(availability) {
+  if (!availability) return "-";
+  if (availability.pickupDisplay === "available") {
+    return availability.pickupSearchQuote || availability.messageTypes?.compact?.storePickupQuote || "○";
+  }
+  return "×";
+}
+
+function appleDirectStockUrl(parts, store) {
+  const params = new URLSearchParams({
+    pl: "true",
+    searchNearby: "true",
+    mt: "compact",
+    store
+  });
+  parts.forEach((part, index) => params.set(`parts.${index}`, part.partNumber));
+  return `${APPLE_PICKUP_URL}?${params.toString()}`;
+}
+
+function extractAppleProducts(html) {
+  const $ = cheerio.load(html);
+  const metrics = $("#metrics").first().text();
+  if (!metrics) throw new Error("Could not find Apple product metadata");
+  const data = JSON.parse(metrics);
+  return (data?.data?.products || [])
+    .map(parseAppleProductName)
+    .filter(product => product?.partNumber);
+}
+
+async function fetchApplePickup(parts, store) {
+  const url = appleDirectStockUrl(parts, store);
+  let lastError = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await axios.get(url, {
+        timeout: 20000,
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36"
+        }
+      });
+      return response.data?.body?.stores || [];
+    } catch (error) {
+      lastError = error;
+      const status = error?.response?.status;
+      if (![429, 503, 541].includes(status) || attempt === 2) break;
+      await sleep(1500 * (attempt + 1));
+    }
+  }
+  throw lastError;
+}
+
+async function scrapeAppleDirectStock() {
+  const products = extractAppleProducts(await fetchHtml(APPLE_IPHONE_URL)).filter(matchesAppleDirectProduct);
+  const availabilityByPartAndStore = new Map();
+
+  for (const parts of chunkArray(products, APPLE_DIRECT_CHUNK_SIZE)) {
+    for (const anchor of APPLE_DIRECT_ANCHOR_STORES) {
+      const stores = await fetchApplePickup(parts, anchor);
+      await sleep(APPLE_DIRECT_REQUEST_DELAY_MS);
+      stores.forEach(store => {
+        const storeDef = APPLE_DIRECT_STORES.find(item => item.id === store.storeNumber);
+        if (!storeDef) return;
+        Object.entries(store.partsAvailability || {}).forEach(([partNumber, availability]) => {
+          availabilityByPartAndStore.set(`${partNumber}|${storeDef.key}`, availability);
+        });
+      });
+    }
+  }
+
+  const columns = [
+    { index: 0, label: "Loại", shop: null, store: null },
+    { index: 1, label: "Dung lượng", shop: null, store: null },
+    { index: 2, label: "Màu", shop: null, store: null },
+    ...APPLE_DIRECT_STORES.map((store, offset) => ({
+      index: offset + 3,
+      label: store.label,
+      shop: null,
+      store: store.key
+    }))
+  ];
+
+  const rows = products.map((product, index) => ({
+    index,
+    kind: product.kind,
+    capacity: product.capacity,
+    color: product.color,
+    teikaOld: null,
+    teikaNew: null,
+    isUpdateRow: false,
+    cells: [
+      { index: 0, text: product.kind, shop: null, store: null, className: "" },
+      { index: 1, text: product.capacity, shop: null, store: null, className: "" },
+      { index: 2, text: product.color, shop: null, store: null, className: "" },
+      ...APPLE_DIRECT_STORES.map((store, offset) => ({
+        index: offset + 3,
+        text: appleStockText(availabilityByPartAndStore.get(`${product.partNumber}|${store.key}`)),
+        shop: null,
+        store: store.key,
+        className: "stock-cell"
+      }))
+    ]
+  }));
+
+  const stockChanges = await withSharedStockChanges(rows);
+  return {
+    ok: true,
+    sourceUrl: APPLE_IPHONE_URL,
+    stockSource: "apple",
+    updatedAt: new Date().toISOString(),
+    columns,
+    rows,
+    priceChanges: {},
+    stockChanges,
+    summary: {
+      rowCount: rows.length,
+      shopCount: 0,
+      storeCount: APPLE_DIRECT_STORES.length,
+      bestProfit: null
+    }
+  };
 }
 
 function parsePriceNumber(value = "") {
@@ -724,22 +914,29 @@ async function withSharedStockChanges(rows) {
       const value = stockValue(cell.text);
       const key = isCheckerStockKey(row, cell);
       const previous = previousState.stockSnapshot?.[key];
+      const previouslyNotified = previousState.stockChanges?.[key] != null;
       nextSnapshot[key] = value;
+      const stocked = hasStock(value);
+      const shouldNotify = stocked && (previous == null || previous !== value || !previouslyNotified);
       if (previous != null && previous !== value) {
         nextChanges[key] = now;
-        if (hasStock(value)) {
-          notifications.push({
-            key,
-            product: `${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
-            rawProduct: `${row.kind} ${row.capacity} ${row.color}`.replace(/\s+/g, " ").trim(),
-            kind: row.kind,
-            capacity: row.capacity,
-            color: row.color,
-            store: cell.store,
-            previous,
-            current: value
-          });
-        }
+      } else if (previous == null && stocked) {
+        nextChanges[key] = now;
+      } else if (shouldNotify) {
+        nextChanges[key] = now;
+      }
+      if (shouldNotify) {
+        notifications.push({
+          key,
+          product: `${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
+          rawProduct: `${row.kind} ${row.capacity} ${row.color}`.replace(/\s+/g, " ").trim(),
+          kind: row.kind,
+          capacity: row.capacity,
+          color: row.color,
+          store: cell.store,
+          previous,
+          current: value
+        });
       }
     });
   });
@@ -883,7 +1080,9 @@ async function scrapeIsChecker() {
 }
 
 async function checkAppleStock({ manual = false } = {}) {
-  const data = await scrapeIsChecker();
+  const data = APPLE_STOCK_SOURCE === "apple"
+    ? await scrapeAppleDirectStock()
+    : await scrapeIsChecker();
   if (manual && !Object.keys(data.stockChanges || {}).length) {
     await sendDiscord(`Đã kiểm tra tồn kho Apple. Không có thay đổi mới.\nThời gian cập nhật: ${formatDiscordTime(new Date(data.updatedAt))}`);
   }

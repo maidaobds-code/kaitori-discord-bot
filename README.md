@@ -99,7 +99,8 @@ Parser sẽ tìm các dòng có dạng `iPhone18 Pro Max 256GB` và giá yen g�
 
 ## Apple Stock Discord
 
-Trang `https://www.apple.com/jp/app-store/` la trang gioi thieu App Store, khong co ton kho iPhone/Mac. Bot dang lay bang ton kho tu `IS_CHECKER_URL` va gui Discord khi mot cua hang doi sang trang thai con hang.
+Trang `https://www.apple.com/jp/app-store/` la trang gioi thieu App Store, khong co ton kho iPhone/Mac.
+Mac dinh bot lay ton kho truc tiep tu Apple Japan (`https://www.apple.com/jp/shop/buy-iphone/iphone-18-pro`) va endpoint pickup cua Apple. Neu muon quay lai bang `IS_CHECKER_URL`, dat `APPLE_STOCK_SOURCE=is-checker`.
 
 - Local cron: `STOCK_CHECK_CRON=*/1 * * * *`
 - Kiem tra thu cong: `POST /api/check-apple-stock`
@@ -110,10 +111,10 @@ Muon gui rieng san pham khop sang kenh phu, tao webhook trong kenh phu Discord r
 
 ```env
 APPLE_STOCK_FORWARD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-APPLE_STOCK_FORWARD_MATCH=iPhone 18 Pro Max|256|Burgundy
+APPLE_STOCK_FORWARD_MATCH=Max|256|Đỏ Burgundy
 ```
 
-`APPLE_STOCK_FORWARD_MATCH` dung dau `|` de tach cac dieu kien bat buoc. Neu bang ton kho ghi mau do bang ten khac, doi `Burgundy` thanh dung ten mau trong dashboard `/apple-stock`.
+`APPLE_STOCK_FORWARD_MATCH` dung dau `|` de tach cac dieu kien bat buoc. Khi dung Apple truc tiep, nen dien ngan gon nhu `Max|256|Đỏ Burgundy` hoac `Max|256|Burgundy` de bot chi query dung san pham can theo doi va tranh Apple chan do goi qua nhieu.
 
 ## API
 
