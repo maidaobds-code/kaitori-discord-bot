@@ -399,8 +399,8 @@ function buildComparison(scraped, previousRows = []) {
   }).sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
 }
 
-async function sendDiscord(message, embeds = []) {
-  const url = process.env.DISCORD_WEBHOOK_URL;
+async function sendDiscord(message, embeds = [], webhookUrl = process.env.DISCORD_WEBHOOK_URL) {
+  const url = webhookUrl;
   if (!url) return;
   const content = [
     "🔔🔔🔔 THÔNG BÁO CẬP NHẬT 🔔🔔🔔",
@@ -665,6 +665,31 @@ function hasStock(value = "") {
   return Boolean(text && text !== "-" && text !== "×");
 }
 
+function normalizeMatchText(value = "") {
+  return String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function stockForwardTokens() {
+  return String(process.env.APPLE_STOCK_FORWARD_MATCH || "")
+    .split("|")
+    .map(token => normalizeMatchText(token))
+    .filter(Boolean);
+}
+
+function matchesStockForwardRule(change) {
+  const tokens = stockForwardTokens();
+  if (!tokens.length) return false;
+  const haystack = normalizeMatchText([
+    change.product,
+    change.rawProduct,
+    change.kind,
+    change.capacity,
+    change.color,
+    change.store
+  ].filter(Boolean).join(" "));
+  return tokens.every(token => haystack.includes(token));
+}
+
 async function withSharedStockChanges(rows) {
   const now = Date.now();
   const previousState = loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {}, stockSnapshot: {}, stockChanges: {} });
@@ -684,6 +709,10 @@ async function withSharedStockChanges(rows) {
           notifications.push({
             key,
             product: `${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
+            rawProduct: `${row.kind} ${row.capacity} ${row.color}`.replace(/\s+/g, " ").trim(),
+            kind: row.kind,
+            capacity: row.capacity,
+            color: row.color,
             store: cell.store,
             previous,
             current: value
@@ -719,6 +748,18 @@ async function withSharedStockChanges(rows) {
     ].join("\n"));
     const more = notifications.length > 20 ? `\n\n...và ${notifications.length - 20} thay đổi khác.` : "";
     await sendDiscord(`Cập nhật tồn kho Apple:\nThời gian cập nhật: ${formatDiscordTime(new Date(now))}\n\n${lines.join("\n\n")}${more}`);
+
+    const forwardWebhook = process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL;
+    const forwarded = forwardWebhook ? notifications.filter(matchesStockForwardRule) : [];
+    if (forwarded.length) {
+      const forwardLines = forwarded.slice(0, 20).map(change => [
+        `${change.product}`,
+        `Cửa hàng: ${bilingualLabel(change.store)}`,
+        `Tồn kho: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)} (${stockValue(change.previous)} -> ${stockValue(change.current)})`
+      ].join("\n"));
+      const forwardMore = forwarded.length > 20 ? `\n\n...và ${forwarded.length - 20} thay đổi khác.` : "";
+      await sendDiscord(`Có hàng đúng sản phẩm cần theo dõi:\nThời gian cập nhật: ${formatDiscordTime(new Date(now))}\n\n${forwardLines.join("\n\n")}${forwardMore}`, [], forwardWebhook);
+    }
   }
 
   return nextChanges;

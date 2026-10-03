@@ -106,6 +106,15 @@ Trang `https://www.apple.com/jp/app-store/` la trang gioi thieu App Store, khong
 - Cron endpoint cho hosting ngoai/Vercel: `GET /api/cron/check-apple-stock`
 - Webhook su dung chung bien `DISCORD_WEBHOOK_URL`
 
+Muon gui rieng san pham khop sang kenh phu, tao webhook trong kenh phu Discord roi them:
+
+```env
+APPLE_STOCK_FORWARD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+APPLE_STOCK_FORWARD_MATCH=iPhone 18 Pro Max|256|Burgundy
+```
+
+`APPLE_STOCK_FORWARD_MATCH` dung dau `|` de tach cac dieu kien bat buoc. Neu bang ton kho ghi mau do bang ten khac, doi `Burgundy` thanh dung ten mau trong dashboard `/apple-stock`.
+
 ## API
 
 - `GET /api/prices`: dữ liệu bảng lợi nhuận mới nhất
