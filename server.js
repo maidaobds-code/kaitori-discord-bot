@@ -579,24 +579,25 @@ function bilingualLabel(value) {
 }
 
 const APPLE_STORE_LABELS = {
-  Ginza: { kanji: "銀座", region: "Kanto" },
-  Marunouchi: { kanji: "丸の内", region: "Kanto" },
-  Omotesando: { kanji: "表参道", region: "Kanto" },
-  Shinjuku: { kanji: "新宿", region: "Kanto" },
-  Shibuya: { kanji: "渋谷", region: "Kanto" },
-  Kawasaki: { kanji: "川崎", region: "Kanto" },
-  Umeda: { kanji: "梅田", region: "Kansai" },
-  Shinsaibashi: { kanji: "心斎橋", region: "Kansai" },
-  Kyoto: { kanji: "京都", region: "Kansai" },
-  Nagoya: { kanji: "名古屋", region: "Chubu" },
-  Fukuoka: { kanji: "福岡", region: "Kyushu" }
+  ginza: { name: "Ginza", kanji: "銀座", region: "Kanto" },
+  marunouchi: { name: "Marunouchi", kanji: "丸の内", region: "Kanto" },
+  omotesando: { name: "Omotesando", kanji: "表参道", region: "Kanto" },
+  shinjuku: { name: "Shinjuku", kanji: "新宿", region: "Kanto" },
+  shibuya: { name: "Shibuya", kanji: "渋谷", region: "Kanto" },
+  kawasaki: { name: "Kawasaki", kanji: "川崎", region: "Kanto" },
+  umeda: { name: "Umeda", kanji: "梅田", region: "Kansai" },
+  shinsaibashi: { name: "Shinsaibashi", kanji: "心斎橋", region: "Kansai" },
+  kyoto: { name: "Kyoto", kanji: "京都", region: "Kansai" },
+  nagoya: { name: "Nagoya", kanji: "名古屋", region: "Chubu" },
+  fukuoka: { name: "Fukuoka", kanji: "福岡", region: "Kyushu" }
 };
 
 function appleStoreLabel(value) {
   const english = translateVi(value);
-  const store = APPLE_STORE_LABELS[english];
+  const storeKey = cleanCellText(english).toLowerCase();
+  const store = APPLE_STORE_LABELS[storeKey];
   if (!store) return bilingualLabel(value);
-  return `${english} ${store.kanji} (${store.region})`;
+  return `${store.name} ${store.kanji} (${store.region})`;
 }
 
 function parsePriceNumber(value = "") {
