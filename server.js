@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { listTasks, createTask, updateTask, deleteTask, heartbeat, isSupabaseConfigured, isLocalStoreEnabled, supabaseUrl, serviceKey } from "./lib/task-store.js";
 
 dotenv.config();
 
@@ -39,6 +40,15 @@ app.use("/api", (req, res, next) => {
   next();
 });
 app.use(express.static(path.join(__dirname, "public")));
+
+// Manager task API: server-only persistence; browser never receives Supabase service credentials.
+async function managerAuth(req, res, next) { const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, ""); if (isSupabaseConfigured) { if (!token) return res.status(401).json({ ok: false, error: "Authentication required" }); try { const auth = await fetch(`${supabaseUrl}/auth/v1/user`, { headers: { apikey: serviceKey, Authorization: `Bearer ${token}` } }); if (!auth.ok) return res.status(401).json({ ok: false, error: "Invalid session" }); req.user = await auth.json(); return next(); } catch { return res.status(503).json({ ok: false, error: "Authentication service unavailable" }); } } if (isLocalStoreEnabled) { req.user = { id: "local-dev" }; return next(); } return res.status(503).json({ ok: false, error: "Manager authentication is not configured" }); }
+app.use("/api/manager", managerAuth);
+app.get("/api/manager/tasks", async (req, res) => { try { res.json({ ok: true, tasks: await listTasks(req.user.id), storage: isSupabaseConfigured ? "supabase" : "local" }); } catch (error) { res.status(500).json({ ok: false, error: error.message }); } });
+app.post("/api/manager/tasks", async (req, res) => { try { const { product_id, quantity = 1, max_price = null, idempotency_key } = req.body || {}; if (!product_id) return res.status(400).json({ ok: false, error: "product_id is required" }); const task = await createTask({ product_id, owner_id: req.user.id, quantity: Number(quantity), max_price: max_price == null ? null : Number(max_price), idempotency_key }); res.status(201).json({ ok: true, task }); } catch (error) { res.status(500).json({ ok: false, error: error.message }); } });
+app.patch("/api/manager/tasks/:id", async (req, res) => { try { const task = await updateTask(req.params.id, req.user.id, { status: req.body?.status, max_price: req.body?.max_price, quantity: req.body?.quantity, error_message: req.body?.error_message }); if (!task) return res.status(404).json({ ok: false, error: "task not found" }); res.json({ ok: true, task }); } catch (error) { res.status(500).json({ ok: false, error: error.message }); } });
+app.delete("/api/manager/tasks/:id", async (req, res) => { try { await deleteTask(req.params.id, req.user.id); res.status(204).end(); } catch (error) { res.status(500).json({ ok: false, error: error.message }); } });
+app.get("/api/manager/worker", async (req, res) => { try { res.json({ ok: true, worker: await heartbeat("manager-worker", "online") }); } catch (error) { res.status(500).json({ ok: false, error: error.message }); } });
 
 function loadJSON(file, fallback) {
   try {
