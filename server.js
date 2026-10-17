@@ -634,11 +634,13 @@ function chunkArray(items, size) {
 
 function parseAppleProductName(product = {}) {
   const name = cleanCellText(product.name).replace(/\u00a0/g, " ");
-  const match = name.match(/^iPhone\s+18\s+(Pro Max|Pro)\s+(\d+(?:GB|TB))\s+(.+)$/i);
+  // Keep the parser generic because Apple changes model names frequently.
+  // APPLE_STOCK_FORWARD_MATCH selects the exact product to notify.
+  const match = name.match(/^iPhone\s+(.+?)\s+(\d+(?:GB|TB))\s+(.+)$/i);
   if (!match) return null;
   return {
     partNumber: product.partNumber,
-    kind: match[1],
+    kind: match[1].trim(),
     capacity: match[2],
     color: match[3],
     name
