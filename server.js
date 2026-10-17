@@ -30,6 +30,7 @@ const PRICE_CHANGE_TTL_MS = 3 * 60 * 60 * 1000;
 let runningCheck = null;
 let runningStockCheck = null;
 let isCheckerCache = null;
+let lastStockTestAt = 0;
 
 app.use(express.json());
 app.use("/api", (req, res, next) => {
@@ -714,7 +715,7 @@ async function fetchApplePickup(parts, store) {
   throw lastError;
 }
 
-async function scrapeAppleDirectStock() {
+async function scrapeAppleDirectStock({ testOnly = false } = {}) {
   // Fetch the full product set for the general stock feed. The forward rule
   // is applied only to stock changes after the general feed is built.
   const products = extractAppleProducts(await fetchHtml(APPLE_IPHONE_URL));
@@ -768,7 +769,7 @@ async function scrapeAppleDirectStock() {
     ]
   }));
 
-  const stockChanges = await withSharedStockChanges(rows);
+  const stockChanges = await withSharedStockChanges(rows, { testOnly });
   return {
     ok: true,
     sourceUrl: APPLE_IPHONE_URL,
@@ -922,7 +923,7 @@ function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FO
   }));
 }
 
-async function withSharedStockChanges(rows) {
+async function withSharedStockChanges(rows, { testOnly = false } = {}) {
   const now = Date.now();
   const previousState = loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {}, stockSnapshot: {}, stockChanges: {} });
   const nextSnapshot = {};
@@ -937,24 +938,24 @@ async function withSharedStockChanges(rows) {
       const previouslyNotified = previousState.stockChanges?.[key] != null;
       nextSnapshot[key] = value;
       const stocked = hasStock(value);
-      const shouldNotify = stocked && (previous == null || previous !== value || !previouslyNotified);
-      if (previous != null && previous !== value) {
+      const shouldNotify = testOnly || (stocked && (previous == null || previous !== value || !previouslyNotified));
+      if (!testOnly && previous != null && previous !== value) {
         nextChanges[key] = now;
-      } else if (previous == null && stocked) {
+      } else if (!testOnly && previous == null && stocked) {
         nextChanges[key] = now;
-      } else if (shouldNotify) {
+      } else if (!testOnly && shouldNotify) {
         nextChanges[key] = now;
       }
       if (shouldNotify) {
         notifications.push({
           key,
-          product: `${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
+          product: `${testOnly ? "🧪 TEST — " : ""}${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
           rawProduct: `${row.kind} ${row.capacity} ${row.color}`.replace(/\s+/g, " ").trim(),
           kind: row.kind,
           capacity: row.capacity,
           color: row.color,
           store: cell.store,
-          previous,
+          previous: testOnly ? value : previous,
           current: value
         });
       }
@@ -967,16 +968,18 @@ async function withSharedStockChanges(rows) {
     }
   });
 
-  try {
-    const latestState = loadJSON(IS_CHECKER_STATE_FILE, {});
-    saveJSON(IS_CHECKER_STATE_FILE, {
-      ...latestState,
-      updatedAt: new Date(now).toISOString(),
-      stockSnapshot: nextSnapshot,
-      stockChanges: nextChanges
-    });
-  } catch (error) {
-    console.warn(`Could not save is-checker stock state: ${error?.message || error}`);
+  if (!testOnly) {
+    try {
+      const latestState = loadJSON(IS_CHECKER_STATE_FILE, {});
+      saveJSON(IS_CHECKER_STATE_FILE, {
+        ...latestState,
+        updatedAt: new Date(now).toISOString(),
+        stockSnapshot: nextSnapshot,
+        stockChanges: nextChanges
+      });
+    } catch (error) {
+      console.warn(`Could not save is-checker stock state: ${error?.message || error}`);
+    }
   }
 
   if (notifications.length) {
@@ -1023,10 +1026,12 @@ async function withSharedStockChanges(rows) {
     ].join("\n"), [], duoWebhook);
   }
 
-  return nextChanges;
+  return testOnly
+    ? Object.fromEntries(notifications.map(change => [change.key, change]))
+    : nextChanges;
 }
 
-async function scrapeIsChecker() {
+async function scrapeIsChecker({ testOnly = false } = {}) {
   const html = await fetchHtml(IS_CHECKER_URL);
   const $ = cheerio.load(html);
   const table = $("table.dataframe").first().length
@@ -1088,7 +1093,7 @@ async function scrapeIsChecker() {
 
   const dataRows = rows.filter(row => !row.isUpdateRow);
   const priceChanges = withSharedPriceChanges(rows);
-  const stockChanges = await withSharedStockChanges(rows);
+  const stockChanges = await withSharedStockChanges(rows, { testOnly });
   const bestProfit = dataRows.reduce((best, row) => {
     const rawProfit = row.cells[4]?.text || "";
     const profitMatch = rawProfit.replace(/,/g, "").match(/[+-]\d+/);
@@ -1121,11 +1126,11 @@ async function scrapeIsChecker() {
   };
 }
 
-async function checkAppleStock({ manual = false } = {}) {
+async function checkAppleStock({ manual = false, testOnly = false } = {}) {
   const data = APPLE_STOCK_SOURCE === "apple"
-    ? await scrapeAppleDirectStock()
+    ? await scrapeAppleDirectStock({ testOnly })
     : await scrapeIsChecker();
-  if (manual && !Object.keys(data.stockChanges || {}).length) {
+  if (manual && !testOnly && !Object.keys(data.stockChanges || {}).length) {
     await sendDiscord(`Đã kiểm tra tồn kho Apple. Không có thay đổi mới.\nThời gian cập nhật: ${formatDiscordTime(new Date(data.updatedAt))}`);
   }
   return data;
@@ -1202,7 +1207,21 @@ app.post("/api/check", async (req, res) => {
 
 app.all("/api/check-apple-stock", async (req, res) => {
   try {
-    res.json(await runStockCheck({ manual: true }));
+    const testOnly = req.method === "POST" && req.query.test === "1";
+    if (testOnly) {
+      if (APPLE_STOCK_SOURCE !== "apple") {
+        return res.status(400).json({ ok: false, error: "Chế độ test live yêu cầu APPLE_STOCK_SOURCE=apple." });
+      }
+      const now = Date.now();
+      if (now - lastStockTestAt < 60_000) {
+        return res.status(429).json({ ok: false, error: "Test endpoint giới hạn 1 lần mỗi phút." });
+      }
+      lastStockTestAt = now;
+    }
+    const data = testOnly
+      ? await checkAppleStock({ manual: true, testOnly: true })
+      : await runStockCheck({ manual: true });
+    res.json(testOnly ? { ...data, testMode: true, testedItems: Object.keys(data.stockChanges || {}).length } : data);
   } catch (e) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
