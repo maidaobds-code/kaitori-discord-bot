@@ -898,8 +898,10 @@ function stockForwardRules(value = process.env.APPLE_STOCK_FORWARD_MATCH) {
 }
 
 function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FORWARD_MATCH) {
-  const rules = stockForwardRules(matchValue);
-  if (!rules.length) return false;
+  const rules = stockForwardRules(matchValue).map(rule => rule.filter(token =>
+    !["kanto", "kansai", "chubu", "kyushu"].includes(token)
+  ));
+  if (!rules.length || rules.some(rule => !rule.length)) return false;
   const kind = normalizeMatchText(change.kind || "");
   const color = normalizeMatchText(change.color || "");
   const colorAliases = normalizeMatchText(appleColorVi(change.color || ""));
