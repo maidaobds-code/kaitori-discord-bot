@@ -405,8 +405,14 @@ function buildComparison(scraped, previousRows = []) {
 async function sendDiscord(message, embeds = [], webhookUrl = process.env.DISCORD_WEBHOOK_URL) {
   const url = webhookUrl;
   if (!url) return;
+  const feedLabel = url === process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL
+    ? `Feed: APPLE_STOCK_FORWARD_MATCH=${process.env.APPLE_STOCK_FORWARD_MATCH || "(empty)"}`
+    : url === process.env.APPLE_STOCK_DUO_WEBHOOK_URL
+      ? `Feed: APPLE_STOCK_DUO_MATCH=${process.env.APPLE_STOCK_DUO_MATCH || "Duo|256"}`
+      : "";
   const content = [
     "🔔🔔🔔 THÔNG BÁO CẬP NHẬT 🔔🔔🔔",
+    ...(feedLabel ? [feedLabel] : []),
     message,
     "✅✅✅ KẾT THÚC THÔNG BÁO ✅✅✅"
   ].join("\n");
