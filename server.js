@@ -919,11 +919,6 @@ function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FO
     if (["burgundy", "glacier", "silver", "black", "red", "đỏ"].includes(token)) {
       return color.includes(token) || colorAliases.includes(token);
     }
-    if (["kanto", "kansai", "chubu", "kyushu"].includes(token)) {
-      const storeKey = normalizeMatchText(change.store || "");
-      const store = APPLE_DIRECT_STORES.find(item => item.key === storeKey);
-      return store?.label.toLowerCase().includes(`(${token})`) || false;
-    }
     if (/^\d+(?:gb|tb)$/.test(token)) {
       const capacity = normalizeMatchText(change.capacity);
       return capacity === token || (token.endsWith("gb") && capacity === token.slice(0, -2));
