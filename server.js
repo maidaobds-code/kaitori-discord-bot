@@ -405,6 +405,13 @@ function buildComparison(scraped, previousRows = []) {
 async function sendDiscord(message, embeds = [], webhookUrl = process.env.DISCORD_WEBHOOK_URL) {
   const url = webhookUrl;
   if (!url) return;
+  // Dedicated product feeds own stock notifications once configured. Do not
+  // also mirror the unfiltered stock list to the general Discord webhook.
+  if (
+    url === process.env.DISCORD_WEBHOOK_URL &&
+    (process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL || process.env.APPLE_STOCK_DUO_WEBHOOK_URL) &&
+    message.includes("->")
+  ) return;
   const content = [
     "🔔🔔🔔 THÔNG BÁO CẬP NHẬT 🔔🔔🔔",
     message,
@@ -905,7 +912,12 @@ function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FO
   const kind = normalizeMatchText(change.kind || "");
   const color = normalizeMatchText(change.color || "");
   const colorAliases = normalizeMatchText(appleColorVi(change.color || ""));
-  const storeLabel = normalizeMatchText(appleStoreLabel(change.store));
+  const isMaxRed256Feed = matchValue === process.env.APPLE_STOCK_FORWARD_MATCH;
+  if (isMaxRed256Feed && (
+    !/\bmax\b/.test(kind) ||
+    !["256gb", "256"].includes(normalizeMatchText(change.capacity)) ||
+    !(color.includes("burgundy") || colorAliases.includes("burgundy"))
+  )) return false;
   const haystack = normalizeMatchText([
     change.product,
     change.rawProduct,
