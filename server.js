@@ -1003,13 +1003,10 @@ async function withSharedStockChanges(rows) {
     ].join("\n"));
     const duoMore = duoChanges.length > 20 ? `\\n\\n...và ${duoChanges.length - 20} thay đổi khác.` : "";
     await sendDiscord([
-      "🔔🔔🔔 THÔNG BÁO CẬP NHẬT 🔔🔔🔔",
       "Có hàng đúng sản phẩm cần theo dõi:",
       `Thời gian cập nhật: ${formatDiscordTime(new Date(now))}`,
       "",
-      duoLines.join("\n\n") + duoMore,
-      "",
-      "✅✅✅ KẾT THÚC THÔNG BÁO ✅✅✅"
+      duoLines.join("\n\n") + duoMore
     ].join("\n"), [], duoWebhook);
   }
 
