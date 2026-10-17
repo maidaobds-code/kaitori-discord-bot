@@ -900,8 +900,9 @@ function stockForwardRules(value = process.env.APPLE_STOCK_FORWARD_MATCH) {
 function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FORWARD_MATCH) {
   const rules = stockForwardRules(matchValue);
   if (!rules.length) return false;
-  const kind = normalizeMatchText(`${change.kind || ""} ${change.rawProduct || ""}`);
+  const kind = normalizeMatchText(change.kind || "");
   const color = normalizeMatchText(change.color || "");
+  const colorAliases = normalizeMatchText(appleColorVi(change.color || ""));
   const storeLabel = normalizeMatchText(appleStoreLabel(change.store));
   const haystack = normalizeMatchText([
     change.product,
@@ -916,17 +917,17 @@ function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FO
     // Keep color matching scoped to Apple's color field. Searching the whole
     // message can make a color token match unrelated translated text.
     if (["burgundy", "glacier", "silver", "black", "red", "đỏ"].includes(token)) {
-      return color.includes(token);
+      return color.includes(token) || colorAliases.includes(token);
     }
     if (["kanto", "kansai", "chubu", "kyushu"].includes(token)) {
       return storeLabel.includes(token);
     }
     if (/^\d+(?:gb|tb)$/.test(token)) {
-      return normalizeMatchText(change.capacity) === token;
+      const capacity = normalizeMatchText(change.capacity);
+      return capacity === token || (token.endsWith("gb") && capacity === token.slice(0, -2));
     }
-    if (token === "max" || token === "pro") {
-      return kind.includes(token);
-    }
+    if (token === "max") return /\bmax\b/.test(kind);
+    if (token === "pro") return /\bpro\b/.test(kind);
     return haystack.includes(token);
   }));
 }
