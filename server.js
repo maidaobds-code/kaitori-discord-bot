@@ -409,7 +409,11 @@ async function sendDiscord(message, embeds = [], webhookUrl = process.env.DISCOR
   // also mirror the unfiltered stock list to the general Discord webhook.
   if (
     url === process.env.DISCORD_WEBHOOK_URL &&
-    (process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL || process.env.APPLE_STOCK_DUO_WEBHOOK_URL) &&
+    (
+      process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL ||
+      process.env.APPLE_STOCK_DUO_WEBHOOK_URL ||
+      process.env.APPLE_STOCK_FORWARD_MATCH
+    ) &&
     message.includes("->")
   ) return;
   const content = [
