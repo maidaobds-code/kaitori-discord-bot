@@ -1014,7 +1014,9 @@ async function withSharedStockChanges(rows) {
     await sendDiscord(`Cập nhật tồn kho Apple:\nThời gian cập nhật: ${formatDiscordTime(new Date(now))}\n\n${lines.join("\n\n")}${more}`);
 
     const forwardWebhook = process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL;
-    const forwarded = forwardWebhook ? notifications.filter(matchesStockForwardRule) : [];
+    const forwarded = forwardWebhook
+      ? notifications.filter(change => matchesStockForwardRule(change, process.env.APPLE_STOCK_FORWARD_MATCH))
+      : [];
     if (forwarded.length) {
       const forwardLines = forwarded.slice(0, 20).map(change => [
         `${change.product}`,
