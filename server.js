@@ -657,8 +657,8 @@ function appleColorVi(color) {
 }
 
 function matchesAppleDirectProduct(product) {
-  const tokens = stockForwardTokens();
-  if (!tokens.length) return true;
+  const rules = stockForwardRules();
+  if (!rules.length) return true;
   const haystack = normalizeMatchText([
     product.name,
     product.kind,
@@ -666,7 +666,7 @@ function matchesAppleDirectProduct(product) {
     product.color,
     appleColorVi(product.color)
   ].filter(Boolean).join(" "));
-  return tokens.every(token => haystack.includes(token));
+  return rules.some(tokens => tokens.every(token => haystack.includes(token)));
 }
 
 function appleStockText(availability) {
@@ -890,18 +890,26 @@ function stockForwardTokens() {
     .filter(Boolean);
 }
 
-function matchesStockForwardRule(change) {
-  const tokens = stockForwardTokens();
-  if (!tokens.length) return false;
+function stockForwardRules(value = process.env.APPLE_STOCK_FORWARD_MATCH) {
+  return String(value || "")
+    .split(";")
+    .map(rule => rule.split("|").map(token => normalizeMatchText(token)).filter(Boolean))
+    .filter(rule => rule.length);
+}
+
+function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FORWARD_MATCH) {
+  const rules = stockForwardRules(matchValue);
+  if (!rules.length) return false;
   const haystack = normalizeMatchText([
     change.product,
     change.rawProduct,
     change.kind,
     change.capacity,
     change.color,
-    change.store
+    change.store,
+    appleStoreLabel(change.store)
   ].filter(Boolean).join(" "));
-  return tokens.every(token => haystack.includes(token));
+  return rules.some(tokens => tokens.every(token => haystack.includes(token)));
 }
 
 async function withSharedStockChanges(rows) {
@@ -981,6 +989,19 @@ async function withSharedStockChanges(rows) {
       const forwardMore = forwarded.length > 20 ? `\n\n...và ${forwarded.length - 20} thay đổi khác.` : "";
       await sendDiscord(`Có hàng đúng sản phẩm cần theo dõi:\nThời gian cập nhật: ${formatDiscordTime(new Date(now))}\n\n${forwardLines.join("\n\n")}${forwardMore}`, [], forwardWebhook);
     }
+  }
+
+  const duoWebhook = process.env.APPLE_STOCK_DUO_WEBHOOK_URL;
+  const duoChanges = duoWebhook
+    ? notifications.filter(change => matchesStockForwardRule(change, process.env.APPLE_STOCK_DUO_MATCH || "Duo|256"))
+    : [];
+  if (duoChanges.length) {
+    const duoLines = duoChanges.slice(0, 20).map(change => [
+      change.product,
+      `Store: ${appleStoreLabel(change.store)}`,
+      `Stock: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)}`
+    ].join("\\n"));
+    await sendDiscord(`Duo 256GB in stock:\n${duoLines.join("\\n\\n")}`, [], duoWebhook);
   }
 
   return nextChanges;
