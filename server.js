@@ -405,17 +405,6 @@ function buildComparison(scraped, previousRows = []) {
 async function sendDiscord(message, embeds = [], webhookUrl = process.env.DISCORD_WEBHOOK_URL) {
   const url = webhookUrl;
   if (!url) return;
-  // Dedicated product feeds own stock notifications once configured. Do not
-  // also mirror the unfiltered stock list to the general Discord webhook.
-  if (
-    url === process.env.DISCORD_WEBHOOK_URL &&
-    (
-      process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL ||
-      process.env.APPLE_STOCK_DUO_WEBHOOK_URL ||
-      process.env.APPLE_STOCK_FORWARD_MATCH
-    ) &&
-    message.includes("->")
-  ) return;
   const content = [
     "🔔🔔🔔 THÔNG BÁO CẬP NHẬT 🔔🔔🔔",
     message,
@@ -667,19 +656,6 @@ function appleColorVi(color) {
   }[color] || color;
 }
 
-function matchesAppleDirectProduct(product) {
-  const rules = stockForwardRules();
-  if (!rules.length) return true;
-  const haystack = normalizeMatchText([
-    product.name,
-    product.kind,
-    product.capacity,
-    product.color,
-    appleColorVi(product.color)
-  ].filter(Boolean).join(" "));
-  return rules.some(tokens => tokens.every(token => haystack.includes(token)));
-}
-
 function appleStockText(availability) {
   if (!availability) return "-";
   if (availability.pickupDisplay === "available") {
@@ -733,7 +709,9 @@ async function fetchApplePickup(parts, store) {
 }
 
 async function scrapeAppleDirectStock() {
-  const products = extractAppleProducts(await fetchHtml(APPLE_IPHONE_URL)).filter(matchesAppleDirectProduct);
+  // Fetch the full product set for the general stock feed. The forward rule
+  // is applied only to stock changes after the general feed is built.
+  const products = extractAppleProducts(await fetchHtml(APPLE_IPHONE_URL));
   const availabilityByPartAndStore = new Map();
 
   for (const parts of chunkArray(products, APPLE_DIRECT_CHUNK_SIZE)) {
@@ -894,13 +872,6 @@ function normalizeMatchText(value = "") {
   return String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function stockForwardTokens() {
-  return String(process.env.APPLE_STOCK_FORWARD_MATCH || "")
-    .split("|")
-    .map(token => normalizeMatchText(token))
-    .filter(Boolean);
-}
-
 function stockForwardRules(value = process.env.APPLE_STOCK_FORWARD_MATCH) {
   return String(value || "")
     .split(";")
@@ -909,19 +880,14 @@ function stockForwardRules(value = process.env.APPLE_STOCK_FORWARD_MATCH) {
 }
 
 function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FORWARD_MATCH) {
-  const rules = stockForwardRules(matchValue).map(rule => rule.filter(token =>
-    !["kanto", "kansai", "chubu", "kyushu"].includes(token)
-  ));
+  const rules = stockForwardRules(matchValue);
   if (!rules.length || rules.some(rule => !rule.length)) return false;
   const kind = normalizeMatchText(change.kind || "");
   const color = normalizeMatchText(change.color || "");
-  const colorAliases = normalizeMatchText(appleColorVi(change.color || ""));
-  const isMaxRed256Feed = matchValue === process.env.APPLE_STOCK_FORWARD_MATCH;
-  if (isMaxRed256Feed && (
-    !/\bmax\b/.test(kind) ||
-    !["256gb", "256"].includes(normalizeMatchText(change.capacity)) ||
-    !(color.includes("burgundy") || colorAliases.includes("burgundy"))
-  )) return false;
+  const colorAliases = normalizeMatchText(appleColorVi(change.color || "")) +
+    (color.includes("burgundy") ? " red đỏ" : "");
+  const storeKey = normalizeMatchText(change.store || "");
+  const region = normalizeMatchText(APPLE_STORE_LABELS[storeKey]?.region || "");
   const haystack = normalizeMatchText([
     change.product,
     change.rawProduct,
@@ -936,6 +902,9 @@ function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FO
     // message can make a color token match unrelated translated text.
     if (["burgundy", "glacier", "silver", "black", "red", "đỏ"].includes(token)) {
       return color.includes(token) || colorAliases.includes(token);
+    }
+    if (["kanto", "kansai", "chubu", "kyushu"].includes(token)) {
+      return region === token;
     }
     if (/^\d+(?:gb|tb)$/.test(token)) {
       const capacity = normalizeMatchText(change.capacity);
