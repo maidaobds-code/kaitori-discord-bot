@@ -998,10 +998,19 @@ async function withSharedStockChanges(rows) {
   if (duoChanges.length) {
     const duoLines = duoChanges.slice(0, 20).map(change => [
       change.product,
-      `Store: ${appleStoreLabel(change.store)}`,
-      `Stock: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)}`
+      `Cửa hàng: ${appleStoreLabel(change.store)}`,
+      `Tồn kho: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)} (${stockValue(change.previous)} -> ${stockValue(change.current)})`
     ].join("\\n"));
-    await sendDiscord(`Duo 256GB in stock:\n${duoLines.join("\\n\\n")}`, [], duoWebhook);
+    const duoMore = duoChanges.length > 20 ? `\\n\\n...và ${duoChanges.length - 20} thay đổi khác.` : "";
+    await sendDiscord([
+      "🔔🔔🔔 THÔNG BÁO CẬP NHẬT 🔔🔔🔔",
+      "Có hàng đúng sản phẩm cần theo dõi:",
+      `Thời gian cập nhật: ${formatDiscordTime(new Date(now))}`,
+      "",
+      duoLines.join("\\n\\n") + duoMore,
+      "",
+      "✅✅✅ KẾT THÚC THÔNG BÁO ✅✅✅"
+    ].join("\\n"), [], duoWebhook);
   }
 
   return nextChanges;
