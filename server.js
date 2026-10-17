@@ -1005,6 +1005,7 @@ async function withSharedStockChanges(rows) {
     await sendDiscord([
       "Có hàng đúng sản phẩm cần theo dõi:",
       `Thời gian cập nhật: ${formatDiscordTime(new Date(now))}`,
+      `Số lượng máy có hàng: ${duoChanges.length}`,
       "",
       duoLines.join("\n\n") + duoMore
     ].join("\n"), [], duoWebhook);
