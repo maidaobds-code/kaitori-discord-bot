@@ -1000,17 +1000,17 @@ async function withSharedStockChanges(rows) {
       change.product,
       `Cửa hàng: ${appleStoreLabel(change.store)}`,
       `Tồn kho: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)} (${stockValue(change.previous)} -> ${stockValue(change.current)})`
-    ].join("\\n"));
+    ].join("\n"));
     const duoMore = duoChanges.length > 20 ? `\\n\\n...và ${duoChanges.length - 20} thay đổi khác.` : "";
     await sendDiscord([
       "🔔🔔🔔 THÔNG BÁO CẬP NHẬT 🔔🔔🔔",
       "Có hàng đúng sản phẩm cần theo dõi:",
       `Thời gian cập nhật: ${formatDiscordTime(new Date(now))}`,
       "",
-      duoLines.join("\\n\\n") + duoMore,
+      duoLines.join("\n\n") + duoMore,
       "",
       "✅✅✅ KẾT THÚC THÔNG BÁO ✅✅✅"
-    ].join("\\n"), [], duoWebhook);
+    ].join("\n"), [], duoWebhook);
   }
 
   return nextChanges;
