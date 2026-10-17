@@ -30,7 +30,6 @@ const PRICE_CHANGE_TTL_MS = 3 * 60 * 60 * 1000;
 let runningCheck = null;
 let runningStockCheck = null;
 let isCheckerCache = null;
-let lastStockTestAt = 0;
 
 app.use(express.json());
 app.use("/api", (req, res, next) => {
@@ -403,17 +402,27 @@ function buildComparison(scraped, previousRows = []) {
   }).sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
 }
 
-async function sendDiscord(message, embeds = [], webhookUrl = process.env.DISCORD_WEBHOOK_URL) {
+async function sendDiscord(message, embeds = [], webhookUrl = process.env.DISCORD_WEBHOOK_URL, feedLabel = "") {
   const url = webhookUrl;
   if (!url) return;
-  const feedLabel = url === process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL
-    ? `Feed: APPLE_STOCK_FORWARD_MATCH=${process.env.APPLE_STOCK_FORWARD_MATCH || "(empty)"}`
-    : url === process.env.APPLE_STOCK_DUO_WEBHOOK_URL
-      ? `Feed: APPLE_STOCK_DUO_MATCH=${process.env.APPLE_STOCK_DUO_MATCH || "Duo|256"}`
-      : "";
+  const secondaryWebhooks = [process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL, process.env.APPLE_STOCK_DUO_WEBHOOK_URL].filter(Boolean);
+  const isGeneralWebhook = url === process.env.DISCORD_WEBHOOK_URL;
+  if (isGeneralWebhook && secondaryWebhooks.includes(url) && !feedLabel) {
+    console.error("Refusing unfiltered Discord post: DISCORD_WEBHOOK_URL duplicates a secondary feed webhook.");
+    return;
+  }
+  const secondaryFeedsShareWebhook = Boolean(
+    process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL &&
+    process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL === process.env.APPLE_STOCK_DUO_WEBHOOK_URL
+  );
+  if (secondaryFeedsShareWebhook && (feedLabel.startsWith("Feed: forward;") || feedLabel.startsWith("Feed: duo;"))) {
+    console.error("Refusing secondary Discord post: forward and duo feeds share one webhook URL.");
+    return;
+  }
+  const actualFeedLabel = feedLabel || (isGeneralWebhook ? "Feed: general (unfiltered)" : "");
   const content = [
     "🔔🔔🔔 THÔNG BÁO CẬP NHẬT 🔔🔔🔔",
-    ...(feedLabel ? [feedLabel] : []),
+    ...(actualFeedLabel ? [actualFeedLabel] : []),
     message,
     "✅✅✅ KẾT THÚC THÔNG BÁO ✅✅✅"
   ].join("\n");
@@ -715,7 +724,7 @@ async function fetchApplePickup(parts, store) {
   throw lastError;
 }
 
-async function scrapeAppleDirectStock({ testOnly = false } = {}) {
+async function scrapeAppleDirectStock() {
   // Fetch the full product set for the general stock feed. The forward rule
   // is applied only to stock changes after the general feed is built.
   const products = extractAppleProducts(await fetchHtml(APPLE_IPHONE_URL));
@@ -769,7 +778,7 @@ async function scrapeAppleDirectStock({ testOnly = false } = {}) {
     ]
   }));
 
-  const stockChanges = await withSharedStockChanges(rows, { testOnly });
+  const stockChanges = await withSharedStockChanges(rows);
   return {
     ok: true,
     sourceUrl: APPLE_IPHONE_URL,
@@ -923,7 +932,7 @@ function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FO
   }));
 }
 
-async function withSharedStockChanges(rows, { testOnly = false } = {}) {
+async function withSharedStockChanges(rows) {
   const now = Date.now();
   const previousState = loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {}, stockSnapshot: {}, stockChanges: {} });
   const nextSnapshot = {};
@@ -938,24 +947,24 @@ async function withSharedStockChanges(rows, { testOnly = false } = {}) {
       const previouslyNotified = previousState.stockChanges?.[key] != null;
       nextSnapshot[key] = value;
       const stocked = hasStock(value);
-      const shouldNotify = testOnly || (stocked && (previous == null || previous !== value || !previouslyNotified));
-      if (!testOnly && previous != null && previous !== value) {
+      const shouldNotify = stocked && (previous == null || previous !== value || !previouslyNotified);
+      if (previous != null && previous !== value) {
         nextChanges[key] = now;
-      } else if (!testOnly && previous == null && stocked) {
+      } else if (previous == null && stocked) {
         nextChanges[key] = now;
-      } else if (!testOnly && shouldNotify) {
+      } else if (shouldNotify) {
         nextChanges[key] = now;
       }
       if (shouldNotify) {
         notifications.push({
           key,
-          product: `${testOnly ? "🧪 TEST — " : ""}${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
+          product: `${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
           rawProduct: `${row.kind} ${row.capacity} ${row.color}`.replace(/\s+/g, " ").trim(),
           kind: row.kind,
           capacity: row.capacity,
           color: row.color,
           store: cell.store,
-          previous: testOnly ? value : previous,
+          previous,
           current: value
         });
       }
@@ -968,18 +977,16 @@ async function withSharedStockChanges(rows, { testOnly = false } = {}) {
     }
   });
 
-  if (!testOnly) {
-    try {
-      const latestState = loadJSON(IS_CHECKER_STATE_FILE, {});
-      saveJSON(IS_CHECKER_STATE_FILE, {
-        ...latestState,
-        updatedAt: new Date(now).toISOString(),
-        stockSnapshot: nextSnapshot,
-        stockChanges: nextChanges
-      });
-    } catch (error) {
-      console.warn(`Could not save is-checker stock state: ${error?.message || error}`);
-    }
+  try {
+    const latestState = loadJSON(IS_CHECKER_STATE_FILE, {});
+    saveJSON(IS_CHECKER_STATE_FILE, {
+      ...latestState,
+      updatedAt: new Date(now).toISOString(),
+      stockSnapshot: nextSnapshot,
+      stockChanges: nextChanges
+    });
+  } catch (error) {
+    console.warn(`Could not save is-checker stock state: ${error?.message || error}`);
   }
 
   if (notifications.length) {
@@ -1002,7 +1009,7 @@ async function withSharedStockChanges(rows, { testOnly = false } = {}) {
         `Tồn kho: ${stockStatusLabel(change.previous)} -> ${stockStatusLabel(change.current)} (${stockValue(change.previous)} -> ${stockValue(change.current)})`
       ].join("\n"));
       const forwardMore = forwarded.length > 20 ? `\n\n...và ${forwarded.length - 20} thay đổi khác.` : "";
-      await sendDiscord(`Có hàng đúng sản phẩm cần theo dõi:\nThời gian cập nhật: ${formatDiscordTime(new Date(now))}\n\n${forwardLines.join("\n\n")}${forwardMore}`, [], forwardWebhook);
+      await sendDiscord(`Có hàng đúng sản phẩm cần theo dõi:\nThời gian cập nhật: ${formatDiscordTime(new Date(now))}\n\n${forwardLines.join("\n\n")}${forwardMore}`, [], forwardWebhook, `Feed: forward; APPLE_STOCK_FORWARD_MATCH=${process.env.APPLE_STOCK_FORWARD_MATCH || "(empty)"}`);
     }
   }
 
@@ -1023,15 +1030,13 @@ async function withSharedStockChanges(rows, { testOnly = false } = {}) {
       `Số lượng máy có hàng: ${duoChanges.length}`,
       "",
       duoLines.join("\n\n") + duoMore
-    ].join("\n"), [], duoWebhook);
+    ].join("\n"), [], duoWebhook, `Feed: duo; APPLE_STOCK_DUO_MATCH=${process.env.APPLE_STOCK_DUO_MATCH || "Duo|256"}`);
   }
 
-  return testOnly
-    ? Object.fromEntries(notifications.map(change => [change.key, change]))
-    : nextChanges;
+  return nextChanges;
 }
 
-async function scrapeIsChecker({ testOnly = false } = {}) {
+async function scrapeIsChecker() {
   const html = await fetchHtml(IS_CHECKER_URL);
   const $ = cheerio.load(html);
   const table = $("table.dataframe").first().length
@@ -1093,7 +1098,7 @@ async function scrapeIsChecker({ testOnly = false } = {}) {
 
   const dataRows = rows.filter(row => !row.isUpdateRow);
   const priceChanges = withSharedPriceChanges(rows);
-  const stockChanges = await withSharedStockChanges(rows, { testOnly });
+  const stockChanges = await withSharedStockChanges(rows);
   const bestProfit = dataRows.reduce((best, row) => {
     const rawProfit = row.cells[4]?.text || "";
     const profitMatch = rawProfit.replace(/,/g, "").match(/[+-]\d+/);
@@ -1126,11 +1131,11 @@ async function scrapeIsChecker({ testOnly = false } = {}) {
   };
 }
 
-async function checkAppleStock({ manual = false, testOnly = false } = {}) {
+async function checkAppleStock({ manual = false } = {}) {
   const data = APPLE_STOCK_SOURCE === "apple"
-    ? await scrapeAppleDirectStock({ testOnly })
+    ? await scrapeAppleDirectStock()
     : await scrapeIsChecker();
-  if (manual && !testOnly && !Object.keys(data.stockChanges || {}).length) {
+  if (manual && !Object.keys(data.stockChanges || {}).length) {
     await sendDiscord(`Đã kiểm tra tồn kho Apple. Không có thay đổi mới.\nThời gian cập nhật: ${formatDiscordTime(new Date(data.updatedAt))}`);
   }
   return data;
@@ -1189,7 +1194,17 @@ app.get("/api/health", (req, res) => {
     ok: true,
     version: "2026-09-19-vercel-serverless-fix",
     vercel: Boolean(process.env.VERCEL),
-    hasLivePrices: true
+    hasLivePrices: true,
+    stockFeeds: {
+      generalConfigured: Boolean(process.env.DISCORD_WEBHOOK_URL),
+      forwardConfigured: Boolean(process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL),
+      duoConfigured: Boolean(process.env.APPLE_STOCK_DUO_WEBHOOK_URL),
+      generalSharesForwardWebhook: Boolean(process.env.DISCORD_WEBHOOK_URL) && process.env.DISCORD_WEBHOOK_URL === process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL,
+      generalSharesDuoWebhook: Boolean(process.env.DISCORD_WEBHOOK_URL) && process.env.DISCORD_WEBHOOK_URL === process.env.APPLE_STOCK_DUO_WEBHOOK_URL,
+      forwardSharesDuoWebhook: Boolean(process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL) && process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL === process.env.APPLE_STOCK_DUO_WEBHOOK_URL,
+      forwardMatch: process.env.APPLE_STOCK_FORWARD_MATCH || "(empty)",
+      duoMatch: process.env.APPLE_STOCK_DUO_MATCH || "Duo|256"
+    }
   });
 });
 
@@ -1207,21 +1222,7 @@ app.post("/api/check", async (req, res) => {
 
 app.all("/api/check-apple-stock", async (req, res) => {
   try {
-    const testOnly = req.method === "POST" && req.query.test === "1";
-    if (testOnly) {
-      if (APPLE_STOCK_SOURCE !== "apple") {
-        return res.status(400).json({ ok: false, error: "Chế độ test live yêu cầu APPLE_STOCK_SOURCE=apple." });
-      }
-      const now = Date.now();
-      if (now - lastStockTestAt < 60_000) {
-        return res.status(429).json({ ok: false, error: "Test endpoint giới hạn 1 lần mỗi phút." });
-      }
-      lastStockTestAt = now;
-    }
-    const data = testOnly
-      ? await checkAppleStock({ manual: true, testOnly: true })
-      : await runStockCheck({ manual: true });
-    res.json(testOnly ? { ...data, testMode: true, testedItems: Object.keys(data.stockChanges || {}).length } : data);
+    res.json(await runStockCheck({ manual: true }));
   } catch (e) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
