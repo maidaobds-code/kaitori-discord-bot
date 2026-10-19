@@ -1,4 +1,4 @@
- # Kaitori Discord Bot
+   # Kaitori Discord Bot
 
 Dashboard theo dõi giá thu mua iPhone 18, so sánh với giá gốc Apple Japan, sắp xếp tiền lãi từ cao xuống thấp và tự động cập nhật mỗi 30 giây.
 
