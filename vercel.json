@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/check-apple-stock",
-      "schedule": "*/1 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
