@@ -954,10 +954,12 @@ function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FO
 
 async function withSharedStockChanges(rows) {
   const now = Date.now();
-  const previousState = loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {}, stockSnapshot: {}, stockChanges: {} });
+  const previousState = loadJSON(IS_CHECKER_STATE_FILE, { snapshot: {}, changes: {}, stockSnapshot: {}, stockChanges: {}, feedNotifications: {} });
   const nextSnapshot = {};
   const nextChanges = { ...(previousState.stockChanges || {}) };
+  const nextFeedNotifications = { ...(previousState.feedNotifications || {}) };
   const notifications = [];
+  const stockedItems = [];
 
   rows.filter(row => !row.isUpdateRow).forEach(row => {
     row.cells.filter(cell => cell.store).forEach(cell => {
@@ -975,8 +977,7 @@ async function withSharedStockChanges(rows) {
       } else if (shouldNotify) {
         nextChanges[key] = now;
       }
-      if (shouldNotify) {
-        notifications.push({
+      const change = {
           key,
           product: `${translateVi(row.kind)} ${row.capacity} ${translateVi(row.color)}`.replace(/\s+/g, " ").trim(),
           rawProduct: `${row.kind} ${row.capacity} ${row.color}`.replace(/\s+/g, " ").trim(),
@@ -986,8 +987,9 @@ async function withSharedStockChanges(rows) {
           store: cell.store,
           previous,
           current: value
-        });
-      }
+      };
+      if (stocked) stockedItems.push(change);
+      if (shouldNotify) notifications.push(change);
     });
   });
 
@@ -1003,12 +1005,14 @@ async function withSharedStockChanges(rows) {
       ...latestState,
       updatedAt: new Date(now).toISOString(),
       stockSnapshot: nextSnapshot,
-      stockChanges: nextChanges
+      stockChanges: nextChanges,
+      feedNotifications: nextFeedNotifications
     });
   } catch (error) {
     console.warn(`Could not save is-checker stock state: ${error?.message || error}`);
   }
 
+  let forwarded = [];
   if (notifications.length) {
     const lines = notifications.slice(0, 20).map(change => [
       `${change.product}`,
@@ -1019,8 +1023,9 @@ async function withSharedStockChanges(rows) {
     await sendDiscord(`Cập nhật tồn kho Apple:\nThời gian cập nhật: ${formatDiscordTime(new Date(now))}\n\n${lines.join("\n\n")}${more}`);
 
     const forwardWebhook = process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL;
-    const forwarded = forwardWebhook
-      ? notifications.filter(change => matchesStockForwardRule(change, process.env.APPLE_STOCK_FORWARD_MATCH))
+    forwarded = forwardWebhook
+      ? stockedItems.filter(change => matchesStockForwardRule(change, process.env.APPLE_STOCK_FORWARD_MATCH)
+        && (!nextFeedNotifications.forward || !nextFeedNotifications.forward[change.key]))
       : [];
     if (forwarded.length) {
       const forwardLines = forwarded.slice(0, 20).map(change => [
@@ -1033,9 +1038,15 @@ async function withSharedStockChanges(rows) {
     }
   }
 
+  if (forwarded.length) {
+    nextFeedNotifications.forward = { ...(nextFeedNotifications.forward || {}) };
+    forwarded.forEach(change => { nextFeedNotifications.forward[change.key] = now; });
+  }
+
   const duoWebhook = process.env.APPLE_STOCK_DUO_WEBHOOK_URL;
   const duoChanges = duoWebhook
-    ? notifications.filter(change => matchesStockForwardRule(change, process.env.APPLE_STOCK_DUO_MATCH || "Duo|256"))
+    ? stockedItems.filter(change => matchesStockForwardRule(change, process.env.APPLE_STOCK_DUO_MATCH || "Duo|256")
+      && (!nextFeedNotifications.duo || !nextFeedNotifications.duo[change.key]))
     : [];
   if (duoChanges.length) {
     const duoLines = duoChanges.slice(0, 20).map(change => [
@@ -1051,6 +1062,13 @@ async function withSharedStockChanges(rows) {
       "",
       duoLines.join("\n\n") + duoMore
     ].join("\n"), [], duoWebhook, `Feed: duo; APPLE_STOCK_DUO_MATCH=${process.env.APPLE_STOCK_DUO_MATCH || "Duo|256"}`);
+  }
+
+  try {
+    const latestState = loadJSON(IS_CHECKER_STATE_FILE, {});
+    saveJSON(IS_CHECKER_STATE_FILE, { ...latestState, feedNotifications: nextFeedNotifications });
+  } catch (error) {
+    console.warn(`Could not save feed notification state: ${error?.message || error}`);
   }
 
   return nextChanges;
@@ -1223,7 +1241,8 @@ app.get("/api/health", (req, res) => {
       generalSharesDuoWebhook: Boolean(process.env.DISCORD_WEBHOOK_URL) && process.env.DISCORD_WEBHOOK_URL === process.env.APPLE_STOCK_DUO_WEBHOOK_URL,
       forwardSharesDuoWebhook: Boolean(process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL) && process.env.APPLE_STOCK_FORWARD_WEBHOOK_URL === process.env.APPLE_STOCK_DUO_WEBHOOK_URL,
       forwardMatch: process.env.APPLE_STOCK_FORWARD_MATCH || "(empty)",
-      duoMatch: process.env.APPLE_STOCK_DUO_MATCH || "Duo|256"
+      duoMatch: process.env.APPLE_STOCK_DUO_MATCH || "Duo|256",
+      forwardMatchSample: matchesStockForwardRule({ kind: "Max", capacity: "256", color: "Burgundy", store: "kyoto" }, process.env.APPLE_STOCK_FORWARD_MATCH)
     }
   });
 });
