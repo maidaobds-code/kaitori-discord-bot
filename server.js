@@ -907,7 +907,8 @@ function matchesStockForwardRule(change, matchValue = process.env.APPLE_STOCK_FO
   if (!rules.length || rules.some(rule => !rule.length)) return false;
   const kind = normalizeMatchText(change.kind || "");
   const color = normalizeMatchText(change.color || "");
-  const colorAliases = normalizeMatchText(appleColorVi(change.color || "")) +
+  const colorAliases = [appleColorVi(change.color || ""), translateVi(change.color || ""), change.product || ""]
+    .map(normalizeMatchText).join(" ") +
     (color.includes("burgundy") ? " red đỏ" : "");
   const storeKey = normalizeMatchText(change.store || "");
   const region = normalizeMatchText(APPLE_STORE_LABELS[storeKey]?.region || "");
