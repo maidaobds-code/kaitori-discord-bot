@@ -1,20 +1,21 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import cron from "node-cron";
-import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { listTasks, createTask, updateTask, deleteTask, heartbeat, isSupabaseConfigured, isLocalStoreEnabled, supabaseUrl, serviceKey } from "./lib/task-store.js";
+import { listTasks, createTask, updateTask, deleteTask, heartbeat, taskEvents, workerStatus, isSupabaseConfigured, isLocalStoreEnabled, supabaseUrl, serviceKey } from "./lib/task-store.js";
 
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const DATA_FILE = path.join(__dirname, "data", "prices.json");
 const SOURCES_FILE = path.join(__dirname, "sources.json");
 const CHECK_CRON = process.env.CHECK_CRON || "*/1 * * * *";
@@ -39,6 +40,7 @@ app.use("/api", (req, res, next) => {
   res.set("Expires", "0");
   next();
 });
+app.get("/manager/", (req, res) => { const html = fs.readFileSync(path.join(__dirname, "public", "manager", "index.html"), "utf8"); res.type("html").send(html.replace("</body></html>", `<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>window.MANAGER_CONFIG=${JSON.stringify({ url: supabaseUrl || "", anon: supabaseAnonKey })}</script><script src="/manager/app.js"></script></body></html>`)); });
 app.use(express.static(path.join(__dirname, "public")));
 
 // Manager task API: server-only persistence; browser never receives Supabase service credentials.
@@ -48,7 +50,8 @@ app.get("/api/manager/tasks", async (req, res) => { try { res.json({ ok: true, t
 app.post("/api/manager/tasks", async (req, res) => { try { const { product_id, quantity = 1, max_price = null, idempotency_key } = req.body || {}; if (!product_id) return res.status(400).json({ ok: false, error: "product_id is required" }); const task = await createTask({ product_id, owner_id: req.user.id, quantity: Number(quantity), max_price: max_price == null ? null : Number(max_price), idempotency_key }); res.status(201).json({ ok: true, task }); } catch (error) { res.status(500).json({ ok: false, error: error.message }); } });
 app.patch("/api/manager/tasks/:id", async (req, res) => { try { const task = await updateTask(req.params.id, req.user.id, { status: req.body?.status, max_price: req.body?.max_price, quantity: req.body?.quantity, error_message: req.body?.error_message }); if (!task) return res.status(404).json({ ok: false, error: "task not found" }); res.json({ ok: true, task }); } catch (error) { res.status(500).json({ ok: false, error: error.message }); } });
 app.delete("/api/manager/tasks/:id", async (req, res) => { try { await deleteTask(req.params.id, req.user.id); res.status(204).end(); } catch (error) { res.status(500).json({ ok: false, error: error.message }); } });
-app.get("/api/manager/worker", async (req, res) => { try { res.json({ ok: true, worker: await heartbeat("manager-worker", "online") }); } catch (error) { res.status(500).json({ ok: false, error: error.message }); } });
+app.get("/api/manager/tasks/:id/events", async (req, res) => { try { res.json({ ok: true, events: await taskEvents(req.params.id, req.user.id) }); } catch (error) { res.status(500).json({ ok: false, error: error.message }); } });
+app.get("/api/manager/worker", async (req, res) => { try { res.json({ ok: true, workers: await workerStatus() }); } catch (error) { res.status(500).json({ ok: false, error: error.message }); } });
 
 function loadJSON(file, fallback) {
   try {
@@ -436,7 +439,10 @@ async function sendDiscord(message, embeds = [], webhookUrl = process.env.DISCOR
     message,
     "✅✅✅ KẾT THÚC THÔNG BÁO ✅✅✅"
   ].join("\n");
-  await axios.post(url, { content, embeds, allowed_mentions: { parse: [] } });
+  await axios.post(url, { content, embeds, allowed_mentions: { parse: [] } }, {
+    timeout: 10000,
+    validateStatus: status => status >= 200 && status < 300
+  });
 }
 
 function formatDiscordTime(date = new Date()) {
@@ -741,17 +747,21 @@ async function scrapeAppleDirectStock() {
   const availabilityByPartAndStore = new Map();
 
   for (const parts of chunkArray(products, APPLE_DIRECT_CHUNK_SIZE)) {
-    for (const anchor of APPLE_DIRECT_ANCHOR_STORES) {
+    const responses = await Promise.allSettled(APPLE_DIRECT_ANCHOR_STORES.map(async anchor => {
       const stores = await fetchApplePickup(parts, anchor);
       await sleep(APPLE_DIRECT_REQUEST_DELAY_MS);
-      stores.forEach(store => {
+      return stores;
+    }));
+    responses.forEach(response => {
+      if (response.status !== "fulfilled") return;
+      response.value.forEach(store => {
         const storeDef = APPLE_DIRECT_STORES.find(item => item.id === store.storeNumber);
         if (!storeDef) return;
         Object.entries(store.partsAvailability || {}).forEach(([partNumber, availability]) => {
           availabilityByPartAndStore.set(`${partNumber}|${storeDef.key}`, availability);
         });
       });
-    }
+    });
   }
 
   const columns = [
