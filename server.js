@@ -419,7 +419,8 @@ async function sendDiscord(message, embeds = [], webhookUrl = process.env.DISCOR
     console.error("Refusing secondary Discord post: forward and duo feeds share one webhook URL.");
     return;
   }
-  const actualFeedLabel = feedLabel || (isGeneralWebhook ? "Feed: general (unfiltered)" : "");
+  const visibleFeedLabel = feedLabel.startsWith("Feed: forward;") ? "" : feedLabel;
+  const actualFeedLabel = visibleFeedLabel || (isGeneralWebhook ? "Feed: general (unfiltered)" : "");
   const content = [
     "🔔🔔🔔 THÔNG BÁO CẬP NHẬT 🔔🔔🔔",
     ...(actualFeedLabel ? [actualFeedLabel] : []),
