@@ -419,11 +419,10 @@ async function sendDiscord(message, embeds = [], webhookUrl = process.env.DISCOR
     console.error("Refusing secondary Discord post: forward and duo feeds share one webhook URL.");
     return;
   }
-  const actualFeedLabel = "";
+  const cleanMessage = String(message).replace(/^Feed:.*(?:\r?\n|$)/gim, "").trim();
   const content = [
     "🔔🔔🔔 THÔNG BÁO CẬP NHẬT 🔔🔔🔔",
-    ...(actualFeedLabel ? [actualFeedLabel] : []),
-    message,
+    cleanMessage,
     "✅✅✅ KẾT THÚC THÔNG BÁO ✅✅✅"
   ].join("\n");
   await axios.post(url, { content, embeds, allowed_mentions: { parse: [] } }, {
